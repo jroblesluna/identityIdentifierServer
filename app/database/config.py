@@ -4,6 +4,7 @@ from pathlib import Path
 import firebase_admin # type: ignore
 from firebase_admin import credentials, storage # type: ignore
 from pathlib import Path
+from dotenv import load_dotenv
 
 def conect_to_firestoreDataBase():
     """
@@ -13,7 +14,7 @@ def conect_to_firestoreDataBase():
     # Make sure the environment variable is set to the project root
     key_path = Path(__file__).resolve().parent.parent.parent / "firebase_key.json"
 
-    print(f"Using Firestore credentials from: {key_path}")
+    #print(f"Using Firestore credentials from: {key_path}")
     if not key_path.exists():
         raise FileNotFoundError(f"Firebase key file not found at: {key_path}")
     # Initialize Firestore client
@@ -32,14 +33,19 @@ def connect_to_firestore_storage():
         bucket: Firebase Storage bucket instance.
     """
     try:
-        # Ruta del archivo de credenciales
+        # root directory of the firebase key
         key_path = Path(__file__).resolve().parent.parent.parent / "firebase_key.json"
+        load_dotenv()
 
+        storage_bucket_name = os.getenv("STORAGE_BUCKET_NAME")
+        if not storage_bucket_name:
+            raise ValueError("STORAGE_BUCKET_NAME no está definido en el archivo .env")
+        
         # Inicializar Firebase solo si no ha sido inicializado antes
         if not firebase_admin._apps:
             cred = credentials.Certificate(key_path)
             firebase_admin.initialize_app(cred, {
-                'storageBucket': 'identityidentifierserverqa.firebasestorage.app' # ponerlo en el env
+                'storageBucket': storage_bucket_name
             })
 
         # Obtener bucket

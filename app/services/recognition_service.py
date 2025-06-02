@@ -1,9 +1,14 @@
+import time
 from PIL import Image
 import face_recognition
 import cv2
+from fastapi import HTTPException
+from fastapi.responses import JSONResponse
 import numpy as np
 import requests
 import traceback
+from app.services.database_service import upload_image_cv2
+from app.utils.others import convert_numpy_types
 from app.utils.response import create_error_response, create_success_response
 
 
@@ -175,7 +180,7 @@ def read_image_from_url(url: str):
 data_response_compare ={
     "CardImageCV2": None,
     "FaceImageCV2": None,
-    "CardLadnMarksImage": None,
+    "CardLandMarksImage": None,
     "FaceLandMarksImage": None,
     "distance":0,
     "match": False,
@@ -183,7 +188,7 @@ data_response_compare ={
 
     
     
-def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
+def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) : 
     """
     image1 = ID card image
     image2 = Face image
@@ -203,8 +208,7 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         img2_resized = preprocess_image(img2_resized)
         enc1=None
         enc2=None
-
-
+        
         if len( face_crop_found_card)> 0:
            enc1 = face_recognition.face_encodings(load_image_cv(face_crop_found_card[0]))
         else:
@@ -218,11 +222,11 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         # Put Landmarks on the images
            
         if len(face_crop_found_card) > 0:
-            data_response_compare["CardLadnMarksImage"] = draw_landmarks(face_crop_found_card[0].copy())[:, :, ::-1]
+            data_response_compare["CardLandMarksImage"] = draw_landmarks(face_crop_found_card[0].copy())[:, :, ::-1]
         elif enc1:
-            data_response_compare["CardLadnMarksImage"] =draw_landmarks(img1_resized.copy())[:, :, ::-1] 
+            data_response_compare["CardLandMarksImage"] =draw_landmarks(img1_resized.copy())[:, :, ::-1] 
         else:
-            data_response_compare["CardLadnMarksImage"] = data_response_compare["CardImageCV2"]
+            data_response_compare["CardLandMarksImage"] = data_response_compare["CardImageCV2"]
         
         
         if len(face_crop_found_face) > 0:
@@ -253,3 +257,9 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
     except Exception as e:
         print(traceback.format_exc())
         return create_error_response(code=500, message=f"Error processing images: {str(e)}")
+    
+    
+    
+    
+    
+    

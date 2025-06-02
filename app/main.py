@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from app.api.endpoints import test ,recognition
+from app.services.cron_service import run_cron_verify_id
+from apscheduler.schedulers.asyncio import AsyncIOScheduler # type: ignore
 from app.database.config import conect_to_firestoreDataBase
-from app.services.database_service import upload_image_cv2
-from app.services.recognition_service import read_image_from_url
-
+import asyncio
 app = FastAPI()
 
 db = conect_to_firestoreDataBase()
@@ -16,37 +16,48 @@ def read_root():
 
 #Test routes , only for testing purpose
 app.include_router(test.router, prefix="/test", tags=["test"])
+
+# Recognition routes
 app.include_router(recognition.router, prefix="/recognition", tags=["recognition"])
 
 
-# # 4. Ruta para guardar el usuario en Firestore
-@app.post("/guardar/")
-async def guardar_usuario():
-    usuario = {"name": "stra", "email": "asd", "age": 1}
-    doc_ref = db.collection("usuarios").document()  # colección "usuarios"
-    doc_ref.set(usuario)  # guardamos el objeto
-    return {"mensaje": "Usuario guardado correctamente", "id": doc_ref.id}
+# URL not found exception
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    return JSONResponse(
+        status_code=404,
+        content={
+            "message": "The path was not found. Check the URL or consult the documentation."
+        }
+    )
+    
+#CRON JOBS    
+LOCK_DOC_PATH = ('cronLocks', 'taskLock')
+
+async def cron_task():
+    run_cron_verify_id()
 
 
-@app.get("/identity/{doc_id}")
-def get_identity(doc_id: str):
-    doc_ref = db.collection("usuarios").document(doc_id)
-    doc = doc_ref.get()
+async def scheduled_job():
+    try:
+        lock_ref = db.collection(LOCK_DOC_PATH[0]).document(LOCK_DOC_PATH[1])
+        lock_doc = lock_ref.get()
 
-    if doc.exists:
-        return doc.to_dict()
-    else:
-        raise HTTPException(status_code=404, detail="Documento no encontrado")
-    
-    
-@app.get("/upload/")
-def upload():
-    cardIdImageUrl = "https://firebasestorage.googleapis.com/v0/b/portafolio-db8bc.appspot.com/o/IMG_20230806_183943.jpg?alt=media&token=cb851317-2f96-4ea8-b22a-a07d483a9538"
-    response_card_image_cv2 = read_image_from_url(cardIdImageUrl)
-        
-    if response_card_image_cv2.get("success") is False:
-        return JSONResponse(status_code=response_card_image_cv2.get("code"), content=response_card_image_cv2)
-        
-    response = upload_image_cv2(response_card_image_cv2.get("data"))
-    
-    return JSONResponse(status_code=200, content={"message": "Image uploaded successfully", "url": response})
+        if lock_doc.exists and lock_doc.to_dict().get("locked", False):
+            print("La tarea cron ya está en ejecución. Se omite esta ejecución.")
+            return
+
+        lock_ref.set({"locked": True})
+        print("Tarea cron iniciada.")
+
+        await cron_task()
+
+        lock_ref.set({"locked": False})
+        print("Tarea cron completada y desbloqueada.")
+    except Exception as e:
+        print(f"Error al ejecutar la tarea cron: {e}")
+        lock_ref.set({"locked": False})
+
+scheduler = AsyncIOScheduler()
+scheduler.add_job(scheduled_job, 'interval', seconds=5, max_instances=2)
+scheduler.start()

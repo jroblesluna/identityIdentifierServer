@@ -1,0 +1,118 @@
+from app.database.config import conect_to_firestoreDataBase
+from app.services.database_service import upload_image_cv2
+from app.services.recognition_service import compare_verify_faces, read_image_from_url
+from app.utils.others import convert_numpy_types
+from datetime import datetime, timezone
+
+
+db = conect_to_firestoreDataBase()
+
+def run_cron_verify_id():
+    try:
+        query = db.collection("request").where("status", "==", "pending")
+        results = query.stream()
+
+        results_list = list(query.stream())
+
+        if len(results_list) == 0:
+            return {"message": "No pending requests found."}
+
+        for pending_request in results:
+            doc_ref = db.collection("request").document(pending_request.id)
+            print(f"Starting execution for the request: {pending_request.id}")
+            # update the status to "started"
+            doc_ref.update({"status": "started"})
+            # Convert the document to a dictionary
+            data = pending_request.to_dict()
+            #  Get input data from the document
+            faceImageUrl = data.get("data").get("input").get("faceImageUrl")
+            cardIdImageUrl = data.get("data").get("input").get("cardIdImageUrl")
+            # output structure model
+            data_response_compareFace_final ={
+                "CardImageCV2": "pending",
+                "FaceImageCV2": "pending",
+                "CardLandMarksImage": "pending",
+                "FaceLandMarksImage": "pending",
+                "distance":-1,
+                "result_match": False,
+            }
+            # Update the document with the initial output structure
+            doc_ref.update({"data.output": data_response_compareFace_final , "updated_at": datetime.now(timezone.utc)})
+
+            response_card_image_cv2 = read_image_from_url(cardIdImageUrl)
+            
+            # Check if the image card was loaded successfully
+            if response_card_image_cv2.get("success") is False:
+                print("Error loading card image:", response_card_image_cv2.get("message") )
+                doc_ref.update({"message":"Error loading card image - "+ response_card_image_cv2.get("message") , "updated_at": datetime.now(timezone.utc) , "success": False})
+                continue
+                
+            # Read the face image from the URL                
+            response_face_image_cv2 = read_image_from_url(faceImageUrl)
+        
+            # Check if the image Face was loaded successfully
+            if response_face_image_cv2.get("success") is False:
+                print("Error loading face image:", response_face_image_cv2.get("message"))
+                doc_ref.update({"message":"Error loading face image - "+ response_face_image_cv2.get("message") , "updated_at": datetime.now(timezone.utc), "success": False})
+                continue
+            
+            image_card=response_card_image_cv2.get("data")
+            face_card=response_face_image_cv2.get("data")
+            
+            # compare the images
+            response_matched=compare_verify_faces(image_card, face_card)   
+            
+           #  Check if the images were compared successfully
+            if response_matched.get("success") is False:
+                print("Error comparing images:", response_matched.get("message"))
+                doc_ref.update({"message":"Error comparing images - "+ response_matched.get("message") , "updated_at": datetime.now(timezone.utc), "success": False})
+                continue
+            
+            
+            # call the callback function 
+            
+            # Upload the images to the firebase database
+        
+            data_compare=response_matched.get("data")
+            
+            doc_ref.update({"data.output.distance": data_compare.get("distance")  ,  "data.output.result_match": bool(data_compare.get("match")) ,  "updated_at": datetime.now(timezone.utc)})
+
+            responseUploadCardImage= upload_image_cv2(data_compare.get("CardImageCV2")) 
+            
+            if responseUploadCardImage.get("success") is False:
+                print("Error uploading card image:", responseUploadCardImage.get("message"))
+                
+                
+            doc_ref.update({"data.output.CardImageCV2": (responseUploadCardImage.get("data") if  responseUploadCardImage.get("success") is True else None)  , "updated_at": datetime.now(timezone.utc) })
+
+            responseUploadFaceImage= upload_image_cv2(data_compare.get("FaceImageCV2")) 
+            
+            if responseUploadFaceImage.get("success") is False:
+                print("Error uploading face image:", responseUploadFaceImage.get("message"))
+            
+            doc_ref.update({"data.output.FaceImageCV2": (responseUploadFaceImage.get("data") if  responseUploadFaceImage.get("success") is True else None), "updated_at": datetime.now(timezone.utc)})
+                
+            responseUploadCardLandMark= upload_image_cv2(data_compare.get("CardLandMarksImage")) 
+            
+            if responseUploadCardLandMark.get("success") is False:
+                print("Error uploading card landmarks image:", responseUploadCardLandMark.get("message"))
+                
+            doc_ref.update({"data.output.CardLandMarksImage": (responseUploadCardLandMark.get("data") if  responseUploadCardLandMark.get("success") is True else None ), "updated_at": datetime.now(timezone.utc)})    
+                
+            responseUploadFaceLandMarks= upload_image_cv2(data_compare.get("FaceLandMarksImage")) 
+            
+            if responseUploadFaceLandMarks.get("success") is False:
+                print("Error uploading face landmarks image:", responseUploadFaceLandMarks.get("message"))
+        
+            doc_ref.update({"data.output.FaceLandMarksImage":( responseUploadFaceLandMarks.get("data") if  responseUploadFaceLandMarks.get("success")  is True else None) , "updated_at": datetime.now(timezone.utc)})
+
+
+            doc_ref.update({"status": "completed", "success": True, "updated_at": datetime.now(timezone.utc) , "message": "Request processed successfully."})
+            
+
+        return {"exito": "Pending requests updated successfully."}
+
+    except Exception as e:
+        print(f"Error fetching pending requests: {e}")
+        return {"error": str(e)}
+

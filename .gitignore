@@ -29,7 +29,7 @@ build/
 *.pyc
 alembic/versions/*.pyc
 nota.txt
-
+packages.txt
 .DS_Store
 Thumbs.db
 
