@@ -41,7 +41,7 @@ def connect_to_firestore_storage():
         if not storage_bucket_name:
             raise ValueError("STORAGE_BUCKET_NAME no está definido en el archivo .env")
         
-        # Inicializar Firebase solo si no ha sido inicializado antes
+       # Initialize Firebase only if it has not been initialized before
         if not firebase_admin._apps:
             cred = credentials.Certificate(key_path)
             firebase_admin.initialize_app(cred, {

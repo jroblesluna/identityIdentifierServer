@@ -46,7 +46,7 @@ async def verify_id_create_Request(request: Request):
     
     cardIdImageUrl = body.get("cardIdImageUrl")
     faceImageUrl = body.get("faceImageUrl")
-    callback = "https://webhook-test.com/4c05274dab19d7e2eb5f33fb2144f9ca" # for testing porpuse 👈body.get("callback")
+    callback =  body.get("callback")
     
     if not cardIdImageUrl or not faceImageUrl:
          raise HTTPException(status_code=400, detail="Required fields are missing in the body of the request")
