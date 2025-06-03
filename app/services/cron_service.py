@@ -4,14 +4,13 @@ from app.services.database_service import upload_image_cv2
 from app.services.recognition_service import compare_verify_faces, read_image_from_url
 from app.utils.others import convert_numpy_types
 from datetime import datetime, timezone
-from google.cloud.firestore_v1 import FieldFilter # type: ignore
+from google.cloud.firestore_v1.base_query import FieldFilter # type: ignore
 
 
 db = conect_to_firestoreDataBase()
 
 async def  run_cron_verify_id():
     try:
-        
         query = db.collection("request").where(filter=FieldFilter("status", "==", "pending"))
         results = query.stream()
         results_list = list(query.stream())
