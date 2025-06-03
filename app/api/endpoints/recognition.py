@@ -1,16 +1,16 @@
 from datetime import datetime, timezone
-import os
 import traceback
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Request
-from requests import RequestException, request
+from requests import RequestException
 from app.database.config import conect_to_firestoreDataBase
 from app.services.database_service import upload_image_cv2
-from app.services.recognition_service import compare_verify_faces, load_image_cv, read_image_from_url, resize_image
+from app.services.recognition_service import compare_verify_faces,  read_image_from_url
 from fastapi.responses import JSONResponse
-import time # 👈 for testing porpuse
 from app.utils.others import convert_numpy_types
 from app.utils.response import create_success_response
+import time # 👈 for testing porpuse
+
 
 router = APIRouter()
 db = conect_to_firestoreDataBase()
@@ -31,8 +31,8 @@ def get_request_by_id(request_id: str):
         for key in ["created_at", "updated_at"]:
             if key in doc_data and isinstance(doc_data[key], datetime):
                 doc_data[key] = doc_data[key].isoformat()
-        # colocar suscess response -- cambiar
-        return JSONResponse(content={"message": "Document found", "data": doc_data})
+                
+        return JSONResponse(create_success_response(data=doc_data , message="Document found", code=200))
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -46,7 +46,7 @@ async def verify_id_create_Request(request: Request):
     
     cardIdImageUrl = body.get("cardIdImageUrl")
     faceImageUrl = body.get("faceImageUrl")
-    callback = "https://example.com/callback" # for testing porpuse 👈
+    callback = "https://webhook-test.com/4c05274dab19d7e2eb5f33fb2144f9ca" # for testing porpuse 👈body.get("callback")
     
     if not cardIdImageUrl or not faceImageUrl:
          raise HTTPException(status_code=400, detail="Required fields are missing in the body of the request")
@@ -116,7 +116,7 @@ async def verify_id_create_Request(request: Request):
 
 
     
-# /verify-id-test sin crear una request en la base de datos
+# /verify-id-test - Sin crear una request en la base de datos, solo resultados
 @router.post("/verify-id-test")
 async def verify_id_test(request: Request):
     try:

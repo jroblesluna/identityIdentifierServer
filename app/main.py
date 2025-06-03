@@ -4,7 +4,6 @@ from app.api.endpoints import test ,recognition
 from app.services.cron_service import run_cron_verify_id
 from apscheduler.schedulers.asyncio import AsyncIOScheduler # type: ignore
 from app.database.config import conect_to_firestoreDataBase
-import asyncio
 app = FastAPI()
 
 db = conect_to_firestoreDataBase()
@@ -35,7 +34,7 @@ async def not_found_handler(request: Request, exc):
 LOCK_DOC_PATH = ('cronLocks', 'taskLock')
 
 async def cron_task():
-    run_cron_verify_id()
+  await  run_cron_verify_id()
 
 
 async def scheduled_job():

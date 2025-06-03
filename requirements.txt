@@ -9,3 +9,4 @@ pillow==11.2.1
 uvicorn==0.29.0
 python-dotenv==1.0.1
 firebase-admin
+httpx
