@@ -1,56 +1,66 @@
 import os
 from google.cloud import firestore
 from pathlib import Path
-import firebase_admin # type: ignore
-from firebase_admin import credentials, storage # type: ignore
-from pathlib import Path
-from dotenv import load_dotenv
+import firebase_admin  # type: ignore
+from firebase_admin import credentials, storage  # type: ignore
+
+# Carga .env solo en entorno local
+if os.getenv("ENV", "local") != "production":
+    from dotenv import load_dotenv
+    load_dotenv()
+
+# Usa variable global para evitar múltiples inicializaciones
+_firebase_initialized = False
+
+
+def get_firebase_key_path() -> Path:
+    """
+    Devuelve la ruta del archivo firebase_key.json.
+    En Cloud Run, usa el secreto montado en /secrets/FIREBASE_KEY.
+    Localmente, usa firebase_key.json o FIREBASE_KEY_PATH.
+    """
+    cloud_run_path = Path("/secrets/FIREBASE_KEY")
+    if cloud_run_path.exists():
+        return cloud_run_path
+
+    # Fallback a variable de entorno o ruta por defecto local
+    return Path(os.getenv("FIREBASE_KEY_PATH", "firebase_key.json")).resolve()
+
 
 def conect_to_firestoreDataBase():
     """
-    Connect to Firestore database using the credentials from the environment variable.
+    Conectar a Firestore con GOOGLE_APPLICATION_CREDENTIALS.
     """
-    
-    # Make sure the environment variable is set to the project root
-    key_path = Path(__file__).resolve().parent.parent.parent / "firebase_key.json"
+    key_path = get_firebase_key_path()
 
-    #print(f"Using Firestore credentials from: {key_path}")
     if not key_path.exists():
         raise FileNotFoundError(f"Firebase key file not found at: {key_path}")
-    # Initialize Firestore client
+
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(key_path)
-
-    db = firestore.Client()
-
-    return db
-
+    return firestore.Client()
 
 
 def connect_to_firestore_storage():
     """
-    Connect to Firebase Storage using the credentials from the project root.
-    Returns:
-        bucket: Firebase Storage bucket instance.
+    Conectar a Firebase Storage usando el archivo de credenciales.
+    Retorna el bucket configurado.
     """
-    try:
-        # root directory of the firebase key
-        key_path = Path(__file__).resolve().parent.parent.parent / "firebase_key.json"
-        load_dotenv()
+    global _firebase_initialized
 
-        storage_bucket_name = os.getenv("STORAGE_BUCKET_NAME")
-        if not storage_bucket_name:
-            raise ValueError("STORAGE_BUCKET_NAME no está definido en el archivo .env")
-        
-       # Initialize Firebase only if it has not been initialized before
-        if not firebase_admin._apps:
-            cred = credentials.Certificate(key_path)
-            firebase_admin.initialize_app(cred, {
-                'storageBucket': storage_bucket_name
-            })
+    key_path = get_firebase_key_path()
 
-        # Obtener bucket
-        bucket = storage.bucket()
-        return bucket
+    if not key_path.exists():
+        raise FileNotFoundError(f"Firebase key file not found at: {key_path}")
 
-    except Exception as e:
-        raise RuntimeError(f"Error al conectar con Firebase Storage: {e}")
+    storage_bucket_name = os.getenv("STORAGE_BUCKET_NAME")
+    if not storage_bucket_name:
+        raise ValueError("La variable de entorno STORAGE_BUCKET_NAME no está definida")
+
+    if not _firebase_initialized:
+        cred = credentials.Certificate(key_path)
+        firebase_admin.initialize_app(cred, {
+            'storageBucket': storage_bucket_name
+        })
+        _firebase_initialized = True
+
+    return storage.bucket()

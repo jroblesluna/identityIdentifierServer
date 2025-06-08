@@ -40,6 +40,4 @@ Thumbs.db
 *.code-workspace
 
 # Firebase credentials
-firebase_credentials/
-firebase-adminsdk-*.json
 firebase_key.json

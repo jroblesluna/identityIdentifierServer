@@ -1,10 +1,20 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from app.api.endpoints import test ,recognition
 from app.services.cron_service import run_cron_verify_id
 from apscheduler.schedulers.asyncio import AsyncIOScheduler # type: ignore
 from app.database.config import conect_to_firestoreDataBase
 app = FastAPI()
+
+# Montar carpeta de archivos estáticos
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Ruta explícita para el favicon
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("static/favicon.png")
 
 db = conect_to_firestoreDataBase()
 
@@ -58,5 +68,8 @@ async def scheduled_job():
         lock_ref.set({"locked": False})
 
 scheduler = AsyncIOScheduler()
-scheduler.add_job(scheduled_job, 'interval', seconds=5, max_instances=2)
-scheduler.start()
+
+@app.on_event("startup")
+async def start_scheduler():
+    scheduler.add_job(scheduled_job, 'interval', seconds=5, max_instances=2)
+    scheduler.start()

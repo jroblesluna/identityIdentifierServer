@@ -1,12 +1,11 @@
 from datetime import datetime, timezone
-import os
-from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from app.services.cron_service import run_cron_verify_id
 from app.services.test_service import get_all_users, get_user_by_id
 from app.database.config import conect_to_firestoreDataBase
 from app.utils.response import create_success_response  
+from app.env import STORAGE_BUCKET_NAME 
 
 router = APIRouter()
 
@@ -65,9 +64,9 @@ def create_request_verify_id():
             "status": "pending",
         }
         
-        load_dotenv()  # Cargar 
-        storage_bucket_name = os.getenv("STORAGE_BUCKET_NAME")
-        print(storage_bucket_name)
+        if not STORAGE_BUCKET_NAME:
+            raise HTTPException(status_code=500, detail="STORAGE_BUCKET_NAME no está definido")
+        
         # Crear documento
         doc_ref = db.collection("request").add(request_data)
 
