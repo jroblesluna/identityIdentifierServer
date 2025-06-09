@@ -10,7 +10,7 @@ IMAGE_NAME="identity-server"
 TAG="latest"
 SECRET_NAME="FIREBASE_KEY"
 FIREBASE_KEY_PATH="./firebase_key.json"
-STORAGE_BUCKET_NAME="identityverifierapp.firebasestorage.com"
+STORAGE_BUCKET_NAME="identityverifierapp.firebasestorage.app"
 CLOUD_RUN_SA="cloud-run-sa"
 CLOUD_RUN_SA_EMAIL="$CLOUD_RUN_SA@$PROJECT_ID.iam.gserviceaccount.com"
 
@@ -82,6 +82,10 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --role="roles/run.invoker" \
   --quiet || true
 
+# ───── VERIFICA STATUS LOCKED FALSE ─────
+npm install firebase-admin
+node updateLocked.js
+
 # ──────── DESPLIEGUE EN CLOUD RUN ────────
 echo "🚀 Desplegando servicio en Cloud Run..."
 gcloud run deploy "$SERVICE_NAME" \
@@ -93,5 +97,14 @@ gcloud run deploy "$SERVICE_NAME" \
   --allow-unauthenticated \
   --service-account="$CLOUD_RUN_SA_EMAIL" \
   --memory=1Gi
+
+# ----------- STOPPING CONTAINER -----------
+# echo "🛑 Deteniendo contenedor en Cloud Run...
+# gcloud run services update "$SERVICE_NAME" \
+#   --region="$REGION" \
+#   --platform=managed \
+#   --no-traffic
+# gcloud run services delete "$SERVICE_NAME" --region="$REGION" --quiet
+# echo "🛑 Contenedor detenido y eliminado."
 
 echo -e "\n🎉 ✅ ¡Despliegue exitoso de '$SERVICE_NAME' en Cloud Run!"
