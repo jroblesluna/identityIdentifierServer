@@ -6,7 +6,18 @@ from app.api.endpoints import recognition
 from app.services.cron_service import run_cron_verify_id
 from apscheduler.schedulers.asyncio import AsyncIOScheduler # type: ignore
 from app.database.config import conect_to_firestoreDataBase
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+# Configuración CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite todas las URLs; en producción, especifica los dominios permitidos
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos los métodos HTTP (GET, POST, etc)
+    allow_headers=["*"],  # Permite todos los headers
+)
 
 # Montar carpeta de archivos estáticos
 app.mount("/static", StaticFiles(directory="static"), name="static")
