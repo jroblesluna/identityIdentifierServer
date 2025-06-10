@@ -89,7 +89,7 @@ async def  run_cron_verify_id():
                         "result_match": bool(data_compare.get("match")),
                         "distance": data_compare.get("distance"),
                         "message": "Identity successfully compared",
-                        "susccess": True,
+                        "success": True,
                     })
                     response.raise_for_status()
                 except Exception as e:
