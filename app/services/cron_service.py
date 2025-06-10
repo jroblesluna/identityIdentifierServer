@@ -92,8 +92,8 @@ async def  run_cron_verify_id():
                         "susccess": True,
                     })
                     response.raise_for_status()
-                except httpx.HTTPError as e:
-                    print(f"Error calling callback: {e}")
+                except Exception as e:
+                    print(f"Error calling callback url - {callback} : {e}")
                    
             
             # Upload the images to the firebase database

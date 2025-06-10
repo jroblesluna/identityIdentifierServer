@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from app.api.endpoints import test ,recognition
+from app.api.endpoints import recognition
 from app.services.cron_service import run_cron_verify_id
 from apscheduler.schedulers.asyncio import AsyncIOScheduler # type: ignore
 from app.database.config import conect_to_firestoreDataBase
@@ -22,9 +22,6 @@ db = conect_to_firestoreDataBase()
 @app.get("/")
 def read_root():
     return {"message": "Hello, from Identity Identifier Server"}
-
-#Test routes , only for testing purpose
-app.include_router(test.router, prefix="/test", tags=["test"])
 
 # Recognition routes
 app.include_router(recognition.router, prefix="/recognition", tags=["recognition"])
