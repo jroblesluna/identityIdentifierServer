@@ -43,7 +43,7 @@ async def verify_id_create_Request(request: Request):
     faceImageUrl = body.get("faceImageUrl")
     callback =  body.get("callback")
     
-    if not cardIdImageUrl or not faceImageUrl:
+    if not cardIdImageUrl or not faceImageUrl or not callback:
          raise HTTPException(status_code=400, detail="Required fields are missing in the body of the request")
 
     try:
