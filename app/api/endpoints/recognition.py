@@ -48,21 +48,22 @@ async def verify_id_create_Request(request: Request):
 
     try:
         request_data = {
-            "created_at": None ,
-            "updated_at": None,
             "status": "pending",
-            "success": None,
-            "message": None,
             "type": None,
+            "message": None,
+            "success": None,
+            "created_at": None,
+            "updated_at": None,
             "data": {
                 "input": {
-                    "faceImageUrl": None,
                     "cardIdImageUrl": None,
-                    "callback": None
-                    },
-                 "output": None
-            }           
+                    "callback": None,
+                    "faceImageUrl": None
+                },
+                "output": None
+            }
         }
+
         #build the request data
         request_data["data"]["input"]["faceImageUrl"] = faceImageUrl
         request_data["data"]["input"]["cardIdImageUrl"] = cardIdImageUrl

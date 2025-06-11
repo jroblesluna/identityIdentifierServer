@@ -48,7 +48,8 @@ async def  run_cron_verify_id():
             # Check if the image card was loaded successfully
             if response_card_image_cv2.get("success") is False:
                 print("Error loading card image:", response_card_image_cv2.get("message") )
-                doc_ref.update({"message":"Error loading card image - "+ response_card_image_cv2.get("message") , "updated_at": datetime.now(timezone.utc) , "success": False})
+                doc_ref.update({"message":"Error loading card image - "+ response_card_image_cv2.get("message") , "updated_at": datetime.now(timezone.utc) , "success": False,"status": "failed"})
+
                 continue
                 
             # Read the face image from the URL                
@@ -57,7 +58,7 @@ async def  run_cron_verify_id():
             # Check if the image Face was loaded successfully
             if response_face_image_cv2.get("success") is False:
                 print("Error loading face image:", response_face_image_cv2.get("message"))
-                doc_ref.update({"message":"Error loading face image - "+ response_face_image_cv2.get("message") , "updated_at": datetime.now(timezone.utc), "success": False})
+                doc_ref.update({"message":"Error loading face image - "+ response_face_image_cv2.get("message") , "updated_at": datetime.now(timezone.utc), "success": False,"status": "failed"})
                 continue
             
             image_card=response_card_image_cv2.get("data")
@@ -69,7 +70,7 @@ async def  run_cron_verify_id():
            #  Check if the images were compared successfully
             if response_matched.get("success") is False:
                 print("Error comparing images:", response_matched.get("message"))
-                doc_ref.update({"message":"Error comparing images - "+ response_matched.get("message") , "updated_at": datetime.now(timezone.utc), "success": False})
+                doc_ref.update({"message":"Error comparing images - "+ response_matched.get("message") , "updated_at": datetime.now(timezone.utc), "success": False,"status": "failed"})
                 continue
             
             
@@ -77,9 +78,10 @@ async def  run_cron_verify_id():
         
             data_compare=response_matched.get("data")
             
-            doc_ref.update({"data.output.distance": data_compare.get("distance")  ,  "data.output.result_match": bool(data_compare.get("match")) ,  "updated_at": datetime.now(timezone.utc), "message": "Identity successfully compared"})
+            doc_ref.update({"data.output.distance": data_compare.get("distance")  ,  "data.output.result_match": bool(data_compare.get("match")) ,  "updated_at": datetime.now(timezone.utc), "message": "Identity successfully compared","status": "partially_completed"})
 
              # call the callback function 
+            found_errors=False 
             
             async with httpx.AsyncClient() as client:
                 try:
@@ -93,14 +95,16 @@ async def  run_cron_verify_id():
                     })
                     response.raise_for_status()
                 except Exception as e:
+                    found_errors=True 
                     print(f"Error calling callback url - {callback} : {e}")
                    
-            
+           
             # Upload the images to the firebase database
             responseUploadCardImage= upload_image_cv2(data_compare.get("CardImageCV2")) 
             
             # Check if the card image was uploaded successfully
             if responseUploadCardImage.get("success") is False:
+                found_errors=True
                 print("Error uploading card image:", responseUploadCardImage.get("message"))
                 
             # Update the document with the uploaded card image     
@@ -111,6 +115,7 @@ async def  run_cron_verify_id():
             
             # Check if the face image was uploaded successfully
             if responseUploadFaceImage.get("success") is False:
+                found_errors=True
                 print("Error uploading face image:", responseUploadFaceImage.get("message"))
             
             # Update the document with the uploaded face image
@@ -120,6 +125,7 @@ async def  run_cron_verify_id():
             
             # Check if the card landmarks image was uploaded successfully
             if responseUploadCardLandMark.get("success") is False:
+                found_errors=True
                 print("Error uploading card landmarks image:", responseUploadCardLandMark.get("message"))
                 
             # Update the document with the uploaded card landmarks image    
@@ -130,13 +136,18 @@ async def  run_cron_verify_id():
             
             # Check if the face landmarks image was uploaded successfully
             if responseUploadFaceLandMarks.get("success") is False:
+                found_errors=True
                 print("Error uploading face landmarks image:", responseUploadFaceLandMarks.get("message"))
         
             # Update the document with the uploaded face landmarks image
             doc_ref.update({"data.output.FaceLandMarksImage":( responseUploadFaceLandMarks.get("data") if  responseUploadFaceLandMarks.get("success")  is True else None) , "updated_at": datetime.now(timezone.utc)})
-
+            # If any error occurred during the upload, update the document status to "failed"
+            if found_errors:
+                doc_ref.update({"status": "completed_with_errors", "success": True, "updated_at": datetime.now(timezone.utc), "message": "Request processed successfully but with some errors. "})
+                
+            else:    
             # Update the document status to "completed" and set success to True
-            doc_ref.update({"status": "completed", "success": True, "updated_at": datetime.now(timezone.utc) , "message": "Request processed successfully."})
+                doc_ref.update({"status": "completed", "success": True, "updated_at": datetime.now(timezone.utc) , "message": "Request processed successfully."})
             
         return {"message": "Pending requests updated successfully."}
 
