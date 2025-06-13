@@ -20,24 +20,32 @@ THRESHOLD_RECOGNITION=0.6
 
 
 
-def draw_landmarks(image):
-    if not isinstance(image, np.ndarray):
+def draw_landmarks(image , face_locations=None):
+    
+    if face_locations is None:
+      if not isinstance(image, np.ndarray):
         image = np.array(image)
-    if image.dtype != np.uint8:
+      if image.dtype != np.uint8:
         image = image.astype(np.uint8)
-    if not image.flags.writeable:
+      if not image.flags.writeable:
         image = image.copy()
 
-    landmarks_list = face_recognition.face_landmarks(image)
-    if(len(landmarks_list) == 0):
-        print("No landmarks found in the image.")
+      landmarks_list = face_recognition.face_landmarks(image)
+      if(len(landmarks_list) == 0):
+         print("No landmarks found in the image.")
        
-    for landmarks in landmarks_list:
-        for points in landmarks.values():
-            for point in points:
-                cv2.circle(image, point, 1, (0, 255, 0), -1)
+      for landmarks in landmarks_list:
+            for points in landmarks.values():
+                for point in points:
+                    cv2.circle(image, point, 1, (0, 255, 0), -1)
+    else:
+        for face_location in face_locations:
+            landmarks_list = face_recognition.face_landmarks(image, [face_location])
+            for landmarks in landmarks_list:
+                for points in landmarks.values():
+                    for point in points:
+                        cv2.circle(image, point, 1, (0, 255, 0), -1)
     return image
-
 def detect_faces(image):
     faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -138,8 +146,29 @@ def adjust_contrast_brightness(image: np.ndarray, alpha: float = 1.5, beta: int 
     return cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
 
 
+def apply_clahe(image: np.ndarray) -> np.ndarray:
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    if len(image.shape) == 3 and image.shape[2] == 3:
+        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        l2 = clahe.apply(l)
+        lab = cv2.merge((l2, a, b))
+        return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    else:
+        return clahe.apply(image)
+
+def equalize_histogram(image: np.ndarray) -> np.ndarray:
+    if len(image.shape) == 3 and image.shape[2] == 3:
+        ycrcb = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+        ycrcb[:, :, 0] = cv2.equalizeHist(ycrcb[:, :, 0])
+        return cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
+    else:
+        return cv2.equalizeHist(image)
+
+
 def preprocess_image(image: np.ndarray) -> np.ndarray:
     image = fast_denoise(image)
+    image = apply_clahe(image)
     #image = sharpen_image(image) #  a lot failed
     #image = adjust_contrast_brightness(image, alpha=1.5, beta=10)
     return image
@@ -176,15 +205,6 @@ def read_image_from_url(url: str):
         return create_error_response(code=500, message=f"Error downloading image or invalid image -  {str(e)}")
       #  return JSONResponse(status_code=500, content={"error": f"Error downloading image or invalid image: {str(e)}"})  
     
-    
-data_response_compare ={
-    "CardImageCV2": None,
-    "FaceImageCV2": None,
-    "CardLandMarksImage": None,
-    "FaceLandMarksImage": None,
-    "distance":0,
-    "match": False,
-}
 
     
     
@@ -194,6 +214,16 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
     image2 = Face image
     """
     try:
+            
+        data_response_compare ={
+            "CardImageCV2": None,
+            "FaceImageCV2": None,
+            "CardLandMarksImage": None,
+            "FaceLandMarksImage": None,
+            "distance": None,
+            "match": None,
+        }
+
         
         data_response_compare["CardImageCV2"] = image1
         data_response_compare["FaceImageCV2"] = image2
@@ -208,14 +238,32 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         img2_resized = preprocess_image(img2_resized)
         enc1=None
         enc2=None
+        face_locations1= None
+        face_locations2= None
         
-        if len( face_crop_found_card)> 0:
-           enc1 = face_recognition.face_encodings(load_image_cv(face_crop_found_card[0]))
-        else:
-            enc1 = face_recognition.face_encodings(img1_resized)
+        if len( face_crop_found_card) >0:
+            enc1 = face_recognition.face_encodings(load_image_cv(face_crop_found_card[0]))
+
+        elif len(face_recognition.face_encodings(img1_resized)) ==0 :
+            face_locations1 = face_recognition.face_locations(img1_resized, model= "cnn")
+            if len(face_locations1) >0:
+                enc1 = face_recognition.face_encodings(img1_resized, known_face_locations=[face_locations1[0]])
+                print("No face detected in the uploaded ID image - CNN")
+            else:
+                enc1 = face_recognition.face_encodings(img1_resized)
+        else: 
+            enc1 = face_recognition.face_encodings(img1_resized)           
+            
 
         if len(face_crop_found_face) > 0:
             enc2 = face_recognition.face_encodings(load_image_cv(face_crop_found_face[0]))
+        elif len(face_recognition.face_encodings(img2_resized)) == 0 :
+            face_locations2 = face_recognition.face_locations(img2_resized, model= "cnn")
+            if len(face_locations2) >0:
+                enc2 = face_recognition.face_encodings(img2_resized, known_face_locations=[face_locations2[0]])
+                print("No face detected in the uploaded face image - CNN")
+            else:
+                enc2 = face_recognition.face_encodings(img2_resized)
         else:
             enc2 = face_recognition.face_encodings(img2_resized)
             
@@ -224,7 +272,7 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         if len(face_crop_found_card) > 0:
             data_response_compare["CardLandMarksImage"] = draw_landmarks(face_crop_found_card[0].copy())[:, :, ::-1]
         elif enc1:
-            data_response_compare["CardLandMarksImage"] =draw_landmarks(img1_resized.copy())[:, :, ::-1] 
+            data_response_compare["CardLandMarksImage"] =draw_landmarks(img1_resized.copy(), face_locations1)[:, :, ::-1] 
         else:
             data_response_compare["CardLandMarksImage"] = data_response_compare["CardImageCV2"]
         
@@ -232,17 +280,17 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         if len(face_crop_found_face) > 0:
             data_response_compare["FaceLandMarksImage"] = draw_landmarks(face_crop_found_face[0].copy())[:, :, ::-1]
         elif enc1:
-            data_response_compare["FaceLandMarksImage"] =draw_landmarks(img2_resized.copy())[:, :, ::-1] 
+            data_response_compare["FaceLandMarksImage"] =draw_landmarks(img2_resized.copy(), face_locations2)[:, :, ::-1] 
         else:
             data_response_compare["FaceLandMarksImage"] = data_response_compare["FaceImageCV2"]
         
             
 
         if not enc1:
-            return create_error_response(code=400, message="No face found in identity card. (1)")
+            return create_error_response(code=400, message="No face found in identity card. (1)",data=data_response_compare)
             
         elif not enc2:
-            return create_error_response(code=400, message="No face found in captured/uploaded photo (2)")
+            return create_error_response(code=400, message="No face found in captured/uploaded photo (2)",data=data_response_compare)
         
         else:
              match = face_recognition.compare_faces([enc1[0]], enc2[0] ,tolerance=THRESHOLD_RECOGNITION)[0]

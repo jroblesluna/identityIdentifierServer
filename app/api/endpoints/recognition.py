@@ -48,6 +48,7 @@ async def verify_id_create_Request(request: Request):
 
     try:
         request_data = {
+            "id": None,
             "status": "pending",
             "type": None,
             "message": None,
