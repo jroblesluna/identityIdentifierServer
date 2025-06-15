@@ -14,6 +14,8 @@ STORAGE_BUCKET_NAME="identityverifierapp.firebasestorage.app"
 CLOUD_RUN_SA="cloud-run-sa"
 CLOUD_RUN_SA_EMAIL="$CLOUD_RUN_SA@$PROJECT_ID.iam.gserviceaccount.com"
 
+gcloud config set project $PROJECT_ID
+
 echo "📁 Proyecto: $PROJECT_ID"
 echo "🧭 Región: $REGION"
 echo "🔐 Secreto: $SECRET_NAME"
@@ -98,13 +100,19 @@ gcloud run deploy "$SERVICE_NAME" \
   --service-account="$CLOUD_RUN_SA_EMAIL" \
   --memory=1Gi
 
-# ----------- STOPPING CONTAINER -----------
-# echo "🛑 Deteniendo contenedor en Cloud Run...
-# gcloud run services update "$SERVICE_NAME" \
-#   --region="$REGION" \
-#   --platform=managed \
-#   --no-traffic
-# gcloud run services delete "$SERVICE_NAME" --region="$REGION" --quiet
-# echo "🛑 Contenedor detenido y eliminado."
+gcloud services enable cloudscheduler.googleapis.com --project=$PROJECT_ID
+
+DEPLOYED_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format='value(status.url)')
+
+gcloud scheduler jobs create http cronVerifyId \
+  --schedule="* * * * *" \
+  --uri="$DEPLOYED_URL/cron/verify-id" \
+  --http-method=POST \
+  --time-zone="America/Los_Angeles" \
+  --message-body="{}" \
+  --oidc-service-account-email=$CLOUD_RUN_SA_EMAIL \
+  --location=$REGION
+
+
 
 echo -e "\n🎉 ✅ ¡Despliegue exitoso de '$SERVICE_NAME' en Cloud Run!"

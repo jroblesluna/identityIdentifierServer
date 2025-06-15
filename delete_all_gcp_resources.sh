@@ -1,11 +1,13 @@
 #!/bin/bash
 set -e
 
-PROJECT_ID=$(gcloud config get-value project)
+PROJECT_ID="identityverifierapp"
 REGION="us-central1"
 REPO_NAME="my-repo"
 SERVICE_NAME="identity-server"
 SECRET_NAME="FIREBASE_KEY"
+
+gcloud config set project $PROJECT_ID
 
 echo "🧹 Iniciando limpieza en el proyecto: $PROJECT_ID"
 
@@ -33,4 +35,6 @@ else
   echo "✅ Secreto '$SECRET_NAME' ya estaba eliminado."
 fi
 
-echo -e "\n🎉 Limpieza completa sin errores."
+gcloud services disable cloudscheduler.googleapis.com --project=$PROJECT_ID
+
+cho -e "\n🎉 Limpieza completa sin errores."
