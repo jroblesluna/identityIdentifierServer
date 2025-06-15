@@ -98,7 +98,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --set-secrets="/secrets/$SECRET_NAME=${SECRET_NAME}:latest" \
   --allow-unauthenticated \
   --service-account="$CLOUD_RUN_SA_EMAIL" \
-  --memory=1Gi
+  --memory=2Gi
 
 gcloud services enable cloudscheduler.googleapis.com --project=$PROJECT_ID
 
