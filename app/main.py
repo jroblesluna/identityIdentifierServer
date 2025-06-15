@@ -4,9 +4,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.api.endpoints import recognition
 from app.services.cron_service import run_cron_verify_id
-#from apscheduler.schedulers.asyncio import AsyncIOScheduler # type: ignore
 from app.database.config import conect_to_firestoreDataBase
 from fastapi.middleware.cors import CORSMiddleware
+from app.services.cron_service import run_cron_verify_id
+
 
 app = FastAPI()
 
@@ -48,43 +49,6 @@ async def not_found_handler(request: Request, exc):
         }
     )
     
-#CRON JOBS    
-#LOCK_DOC_PATH = ('cronLocks', 'taskLock')
-
-#async def cron_task():
-#  await  run_cron_verify_id()
-
-
-#async def scheduled_job():
-#    try:
-#        lock_ref = db.collection(LOCK_DOC_PATH[0]).document(LOCK_DOC_PATH[1])
-#        lock_doc = lock_ref.get()
-
-#        if lock_doc.exists and lock_doc.to_dict().get("locked", False):
-#            print("La tarea cron ya está en ejecución. Se omite esta ejecución.")
-#            return
-
-#        lock_ref.set({"locked": True})
-#        print("Tarea cron iniciada.")
-
-#        await cron_task()
-
-#        lock_ref.set({"locked": False})
-#        print("Tarea cron completada y desbloqueada.")
-#    except Exception as e:
-#        print(f"Error al ejecutar la tarea cron: {e}")
-#        lock_ref.set({"locked": False})
-
-#scheduler = AsyncIOScheduler()
-
-#@app.on_event("startup")
-#async def start_scheduler():
-#    scheduler.add_job(scheduled_job, 'interval', seconds=60, max_instances=1)
-#    scheduler.start()
-
-from app.services.cron_service import run_cron_verify_id
-from datetime import datetime
-
 LOCK_DOC_PATH = ('cronLocks', 'taskLock')
 
 @app.post("/cron/verify-id")
