@@ -113,6 +113,4 @@ gcloud scheduler jobs create http cronVerifyId \
   --oidc-service-account-email=$CLOUD_RUN_SA_EMAIL \
   --location=$REGION
 
-
-
 echo -e "\n🎉 ✅ ¡Despliegue exitoso de '$SERVICE_NAME' en Cloud Run!"
