@@ -168,7 +168,7 @@ def equalize_histogram(image: np.ndarray) -> np.ndarray:
 
 def preprocess_image(image: np.ndarray) -> np.ndarray:
     image = fast_denoise(image)
-    image = apply_clahe(image)
+    #image = apply_clahe(image)
     #image = sharpen_image(image) #  a lot failed
     #image = adjust_contrast_brightness(image, alpha=1.5, beta=10)
     return image
@@ -274,7 +274,7 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         elif enc1:
             data_response_compare["CardLandMarksImage"] =draw_landmarks(img1_resized.copy(), face_locations1)[:, :, ::-1] 
         else:
-            data_response_compare["CardLandMarksImage"] = data_response_compare["CardImageCV2"]
+            data_response_compare["CardLandMarksImage"] = None
         
         
         if len(face_crop_found_face) > 0:
@@ -282,16 +282,25 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         elif enc1:
             data_response_compare["FaceLandMarksImage"] =draw_landmarks(img2_resized.copy(), face_locations2)[:, :, ::-1] 
         else:
-            data_response_compare["FaceLandMarksImage"] = data_response_compare["FaceImageCV2"]
+            data_response_compare["FaceLandMarksImage"] = None
         
             
 
+        errors = []
+
         if not enc1:
-            return create_error_response(code=400, message="No face found in identity card. (1)",data=data_response_compare)
+            errors.append("No face found in identity card. (1)")
+
+        if not enc2:
+            errors.append("No face found in captured/uploaded photo. (2)")
+
+        if errors:
+            return create_error_response(
+                code=400,
+                message="; ".join(errors),
+                data=data_response_compare
+            )
             
-        elif not enc2:
-            return create_error_response(code=400, message="No face found in captured/uploaded photo (2)",data=data_response_compare)
-        
         else:
              match = face_recognition.compare_faces([enc1[0]], enc2[0] ,tolerance=THRESHOLD_RECOGNITION)[0]
              distance = face_recognition.face_distance([enc1[0]], enc2[0] )[0]

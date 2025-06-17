@@ -126,29 +126,38 @@ async def  run_cron_verify_id():
             
             # Update the document with the uploaded face image
             doc_ref.update({"data.output.FaceImageCV2": (responseUploadFaceImage.get("data") if  responseUploadFaceImage.get("success") is True else None), "updated_at": datetime.now(timezone.utc)})
+            
+            if data_compare.get("CardLandMarksImage") is not None:
                 
-            responseUploadCardLandMark= upload_image_cv2(data_compare.get("CardLandMarksImage")) 
+                responseUploadCardLandMark= upload_image_cv2( data_compare.get("CardLandMarksImage")) 
             
-            # Check if the card landmarks image was uploaded successfully
-            if responseUploadCardLandMark.get("success") is False:
-                found_errors=True
-                text_errors.append(responseUploadCardLandMark.get("message"))
-                print("Error uploading card landmarks image:", responseUploadCardLandMark.get("message"))
+                # Check if the card landmarks image was uploaded successfully
+                if responseUploadCardLandMark.get("success") is False:
+                    found_errors=True
+                    text_errors.append(responseUploadCardLandMark.get("message"))
+                    print("Error uploading card landmarks image:", responseUploadCardLandMark.get("message"))
+                    # Update the document with the uploaded card landmarks image    
+                    doc_ref.update({"data.output.CardLandMarksImage": (responseUploadCardLandMark.get("data") if  responseUploadCardLandMark.get("success") is True else "failed" ), "updated_at": datetime.now(timezone.utc)})    
+                else:
+                    doc_ref.update({"data.output.CardLandMarksImage": "failed", "updated_at": datetime.now(timezone.utc)})          
+            
+            
+            if data_compare.get("FaceLandMarksImage") is not None:
                 
-            # Update the document with the uploaded card landmarks image    
-            doc_ref.update({"data.output.CardLandMarksImage": (responseUploadCardLandMark.get("data") if  responseUploadCardLandMark.get("success") is True else None ), "updated_at": datetime.now(timezone.utc)})    
+                # Upload the face landmarks image to the firebase database    
+                responseUploadFaceLandMarks= upload_image_cv2(data_compare.get("FaceLandMarksImage")) 
+                
+                # Check if the face landmarks image was uploaded successfully
+                if responseUploadFaceLandMarks.get("success") is False:
+                    found_errors=True
+                    text_errors.append(responseUploadFaceLandMarks.get("message"))
+                    print("Error uploading face landmarks image:", responseUploadFaceLandMarks.get("message"))
             
-            # Upload the face landmarks image to the firebase database    
-            responseUploadFaceLandMarks= upload_image_cv2(data_compare.get("FaceLandMarksImage")) 
+                # Update the document with the uploaded face landmarks image
+                doc_ref.update({"data.output.FaceLandMarksImage":( responseUploadFaceLandMarks.get("data") if  responseUploadFaceLandMarks.get("success")  is True else "failed") , "updated_at": datetime.now(timezone.utc)})
+            else:
+                doc_ref.update({"data.output.FaceLandMarksImage": "failed", "updated_at": datetime.now(timezone.utc)})
             
-            # Check if the face landmarks image was uploaded successfully
-            if responseUploadFaceLandMarks.get("success") is False:
-                found_errors=True
-                text_errors.append(responseUploadFaceLandMarks.get("message"))
-                print("Error uploading face landmarks image:", responseUploadFaceLandMarks.get("message"))
-        
-            # Update the document with the uploaded face landmarks image
-            doc_ref.update({"data.output.FaceLandMarksImage":( responseUploadFaceLandMarks.get("data") if  responseUploadFaceLandMarks.get("success")  is True else None) , "updated_at": datetime.now(timezone.utc)})
             # If any error occurred during the upload
             if found_errors:
                 doc_ref.update({"status": "completed_with_errors", "success": True, "updated_at": datetime.now(timezone.utc), "message": "Request processed successfully but with errors. - Error(s): " + ", ".join(text_errors)})
