@@ -12,7 +12,7 @@ from app.utils.others import convert_numpy_types
 from app.utils.response import create_error_response, create_success_response
 
 
-PREPROCESS = True
+PREPROCESS = False
 RESIZE = True
 DRAW_RECTANGLE = False
 THRESHOLD_RECOGNITION=0.6
@@ -54,9 +54,9 @@ def detect_faces(image):
     return [face for face in faces if face[2] * face[3] >= min_area]
 
 
-def capture_face(frame):
-    global PREPROCESS, RESIZE, DRAW_RECTANGLE  # declarar uso de variables globales
-
+def capture_face(frame, quality=False, type=""):
+    global PREPROCESS, RESIZE, DRAW_RECTANGL # declarar uso de variables globales
+    # agregar  rotación y calidad
     face_crop_found = []
     image_np = load_image_cv(frame)
 
@@ -65,17 +65,33 @@ def capture_face(frame):
 
     # Convertir a BGR y redimensionar si es necesario
     image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+    image_bgr_original=image_bgr.copy()
     if RESIZE:
         image_bgr = resize_image(image_bgr)
-
+        
+    margin = 20
     faces = detect_faces(image_bgr)
+    rotation_attempts = 0
+        
+     # Try rotating up to 3 times (90°, 180°, 270°)
+    while not faces and rotation_attempts < 3 and quality==True:
+        rotation_attempts += 1
+        print("rotating the image 90° - hardcascade mod")
+        image_bgr_original = cv2.rotate(image_bgr_original, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        image_bgr= image_bgr_original
+        if RESIZE:
+            image_bgr = resize_image(image_bgr)
+        faces = detect_faces(image_bgr)    
+
+  
     height, width, _ = image_bgr.shape
     margin = 20
 
     if DRAW_RECTANGLE:
         for (x, y, w, h) in faces:
             cv2.rectangle(image_bgr, (x, y), (x + w, y + h), (0, 0, 255), 4)
-
+   
+   
     if faces:
         for (x, y, w, h) in faces:
             x1 = max(x - margin, 0)
@@ -86,7 +102,8 @@ def capture_face(frame):
             face_crop = image_bgr[y1:y2, x1:x2][:, :, ::-1]
             face_crop_found.append(face_crop)
     else:
-        print("No face detected in the uploaded identity image.")
+        print("No face detected in the uploaded  image "+type+".")
+
 
     return image_np, image_bgr, face_crop_found
 
@@ -110,6 +127,45 @@ def load_image_cv(image_file):
         img_cv = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
         return cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB)
 
+
+
+def analyze_image_quality(image_input):
+    try:
+        # Convert input to a NumPy RGB image
+        if isinstance(image_input, Image.Image):
+            img_pil = image_input
+            img_np = np.array(img_pil)
+        elif isinstance(image_input, np.ndarray):
+            img_np = cv2.cvtColor(image_input, cv2.COLOR_BGR2RGB)
+            img_pil = Image.fromarray(img_np)
+        else:
+            image_input.seek(0)
+            file_bytes = np.asarray(bytearray(image_input.read()), dtype=np.uint8)
+            img_cv = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+            img_np = cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB)
+            img_pil = Image.fromarray(img_np)
+
+        width, height = img_pil.size
+        img_gray = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2GRAY)
+        sharpness = cv2.Laplacian(img_gray, cv2.CV_64F).var()
+
+        # Estimate size in KB (raw size approximation)
+        size_kb = img_np.nbytes / 1024
+
+        # Apply quality rules
+        
+        if sharpness < 100:
+            return False, "Blurry image - It does not meet quality requirements."
+        if width < 300 or height < 300:
+            return False, "The image has a low resolution - It does not meet the quality requirements."
+        if size_kb < 10:
+            return False, "very small file size requirements - It does not meet quality requirements. "
+   
+
+        return True, "Image meets the quality requirements."
+
+    except Exception as e:
+        return False, "An error occurred while analyzing the image."
 
 def fast_denoise(image: np.ndarray, ksize: int = 3) -> np.ndarray:
     return cv2.GaussianBlur(image, (ksize, ksize), 0)
@@ -168,7 +224,7 @@ def equalize_histogram(image: np.ndarray) -> np.ndarray:
 
 def preprocess_image(image: np.ndarray) -> np.ndarray:
     image = fast_denoise(image)
-    #image = apply_clahe(image)
+    image = apply_clahe(image)
     #image = sharpen_image(image) #  a lot failed
     #image = adjust_contrast_brightness(image, alpha=1.5, beta=10)
     return image
@@ -223,17 +279,18 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
             "distance": None,
             "match": None,
         }
-
+        
+    
         
         data_response_compare["CardImageCV2"] = image1
         data_response_compare["FaceImageCV2"] = image2
         
         
-        _, _, face_crop_found_card = capture_face( image1)
-        _, _, face_crop_found_face = capture_face(image2)
+        _, _, face_crop_found_card = capture_face(image1, True, type="- ID CARD")
+        _, _, face_crop_found_face = capture_face(image2, type="- FACE ")
 
         img1_resized =  resize_image(load_image_cv(image1)) #ID CARD
-        img1_resized =preprocess_image(img1_resized)
+        img1_resized = preprocess_image(img1_resized)
         img2_resized= resize_image(load_image_cv(image2)) # FACE UPLOAD
         img2_resized = preprocess_image(img2_resized)
         enc1=None
@@ -243,29 +300,62 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         
         if len( face_crop_found_card) >0:
             enc1 = face_recognition.face_encodings(load_image_cv(face_crop_found_card[0]))
-
-        elif len(face_recognition.face_encodings(img1_resized)) ==0 :
-            face_locations1 = face_recognition.face_locations(img1_resized, model= "cnn")
-            if len(face_locations1) >0:
-                enc1 = face_recognition.face_encodings(img1_resized, known_face_locations=[face_locations1[0]])
-                print("No face detected in the uploaded ID image - CNN")
-            else:
-                enc1 = face_recognition.face_encodings(img1_resized)
+            print("Face detected in the uploaded ID image - hardcascade")
+        elif len(face_recognition.face_encodings(img1_resized)) ==0:
+            original_img1_resized=img1_resized.copy()
+            rotation_attempts = 0
+            find_enc1=  len(face_recognition.face_encodings(img1_resized)) >0
+            while not find_enc1 and rotation_attempts < 3:
+              rotation_attempts += 1     
+              print("rotating the image 90° - normal mod")
+              img1_resized = cv2.rotate(img1_resized, cv2.ROTATE_90_COUNTERCLOCKWISE)   
+              find_enc1=  len(face_recognition.face_encodings(img1_resized)) >0  
+                
+            
+            if  find_enc1:
+                print("Face detected in the uploaded ID image - normal")
+                enc1=face_recognition.face_encodings(img1_resized)
+            else:    
+                #  tambien debo rotar?
+                img1_resized=original_img1_resized.copy()
+                rotation_attempts = 0
+                face_locations1 = face_recognition.face_locations(img1_resized, model= "cnn")
+                while not len(face_locations1) >0 and rotation_attempts < 3:
+                    rotation_attempts += 1     
+                    print("rotating the image 90° - normal cnn")
+                    img1_resized = cv2.rotate(img1_resized, cv2.ROTATE_90_COUNTERCLOCKWISE)   
+                    face_locations1 = face_recognition.face_locations(img1_resized, model= "cnn")
+                    
+                if len(face_locations1) >0:
+                    print("Face detected in the uploaded ID image - CNN")
+                    enc1 = face_recognition.face_encodings(img1_resized, known_face_locations=[face_locations1[0]])
+                else:
+                    print("No face detected in the uploaded ID image - CNN")
+                    enc1 = face_recognition.face_encodings(img1_resized)
+                
         else: 
+            print("Face detected in the uploaded ID image")
+            # Lo encuentra a la primera
             enc1 = face_recognition.face_encodings(img1_resized)           
             
 
         if len(face_crop_found_face) > 0:
+            print("Face detected in the uploaded face image - hardcascade")
             enc2 = face_recognition.face_encodings(load_image_cv(face_crop_found_face[0]))
         elif len(face_recognition.face_encodings(img2_resized)) == 0 :
             face_locations2 = face_recognition.face_locations(img2_resized, model= "cnn")
             if len(face_locations2) >0:
+                print("Face detected in the uploaded face image - CNN")
                 enc2 = face_recognition.face_encodings(img2_resized, known_face_locations=[face_locations2[0]])
-                print("No face detected in the uploaded face image - CNN")
+                
             else:
+                print("No face detected in the uploaded face image - CNN")
                 enc2 = face_recognition.face_encodings(img2_resized)
         else:
+            print("Face detected in the uploaded face image")
             enc2 = face_recognition.face_encodings(img2_resized)
+            
+        
             
         # Put Landmarks on the images
            
@@ -279,7 +369,7 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         
         if len(face_crop_found_face) > 0:
             data_response_compare["FaceLandMarksImage"] = draw_landmarks(face_crop_found_face[0].copy())[:, :, ::-1]
-        elif enc1:
+        elif enc2:
             data_response_compare["FaceLandMarksImage"] =draw_landmarks(img2_resized.copy(), face_locations2)[:, :, ::-1] 
         else:
             data_response_compare["FaceLandMarksImage"] = None
@@ -289,10 +379,15 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         errors = []
 
         if not enc1:
-            errors.append("No face found in identity card. (1)")
+            # ANALIZO CALIDAD 
+            is_valid, quality_msg = analyze_image_quality(load_image_cv(image1))
+            
+            errors.append(f"No face found in identity card. (1) - { quality_msg if not is_valid else "" }")
 
         if not enc2:
-            errors.append("No face found in captured/uploaded photo. (2)")
+            # ANALIZO CALIDAD  
+            is_valid, quality_msg = analyze_image_quality(load_image_cv(image2))
+            errors.append(f"No face found in captured/uploaded photo. (2) { quality_msg if not is_valid else "" }")
 
         if errors:
             return create_error_response(
@@ -314,9 +409,6 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
     except Exception as e:
         print(traceback.format_exc())
         return create_error_response(code=500, message=f"Error processing images: {str(e)}")
-    
-    
-    
     
     
     

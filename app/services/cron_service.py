@@ -137,9 +137,10 @@ async def  run_cron_verify_id():
                     text_errors.append(responseUploadCardLandMark.get("message"))
                     print("Error uploading card landmarks image:", responseUploadCardLandMark.get("message"))
                     # Update the document with the uploaded card landmarks image    
-                    doc_ref.update({"data.output.CardLandMarksImage": (responseUploadCardLandMark.get("data") if  responseUploadCardLandMark.get("success") is True else "failed" ), "updated_at": datetime.now(timezone.utc)})    
-                else:
-                    doc_ref.update({"data.output.CardLandMarksImage": "failed", "updated_at": datetime.now(timezone.utc)})          
+                doc_ref.update({"data.output.CardLandMarksImage": (responseUploadCardLandMark.get("data") if  responseUploadCardLandMark.get("success") is True else "failed" ), "updated_at": datetime.now(timezone.utc)})    
+              
+            else:
+                doc_ref.update({"data.output.CardLandMarksImage": "failed", "updated_at": datetime.now(timezone.utc)})          
             
             
             if data_compare.get("FaceLandMarksImage") is not None:
