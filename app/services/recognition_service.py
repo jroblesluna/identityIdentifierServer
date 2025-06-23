@@ -1,6 +1,6 @@
 import time
 from PIL import Image
-import face_recognition
+# import face_recognition
 import cv2
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
@@ -10,6 +10,7 @@ import traceback
 from app.services.database_service import upload_image_cv2
 from app.utils.others import convert_numpy_types
 from app.utils.response import create_error_response, create_success_response
+from insightface.app import FaceAnalysis
 
 
 PREPROCESS = False
@@ -20,32 +21,35 @@ THRESHOLD_RECOGNITION=0.6
 
 
 
-def draw_landmarks(image , face_locations=None):
+# def draw_landmarks(image , face_locations=None):
     
-    if face_locations is None:
-      if not isinstance(image, np.ndarray):
-        image = np.array(image)
-      if image.dtype != np.uint8:
-        image = image.astype(np.uint8)
-      if not image.flags.writeable:
-        image = image.copy()
+#     if face_locations is None:
+#       if not isinstance(image, np.ndarray):
+#         image = np.array(image)
+#       if image.dtype != np.uint8:
+#         image = image.astype(np.uint8)
+#       if not image.flags.writeable:
+#         image = image.copy()
 
-      landmarks_list = face_recognition.face_landmarks(image)
-      if(len(landmarks_list) == 0):
-         print("No landmarks found in the image.")
+#       landmarks_list = face_recognition.face_landmarks(image)
+#       if(len(landmarks_list) == 0):
+#          print("No landmarks found in the image.")
        
-      for landmarks in landmarks_list:
-            for points in landmarks.values():
-                for point in points:
-                    cv2.circle(image, point, 1, (0, 255, 0), -1)
-    else:
-        for face_location in face_locations:
-            landmarks_list = face_recognition.face_landmarks(image, [face_location])
-            for landmarks in landmarks_list:
-                for points in landmarks.values():
-                    for point in points:
-                        cv2.circle(image, point, 1, (0, 255, 0), -1)
-    return image
+#       for landmarks in landmarks_list:
+#             for points in landmarks.values():
+#                 for point in points:
+#                     cv2.circle(image, point, 1, (0, 255, 0), -1)
+#     else:
+#         for face_location in face_locations:
+#             landmarks_list = face_recognition.face_landmarks(image, [face_location])
+#             for landmarks in landmarks_list:
+#                 for points in landmarks.values():
+#                     for point in points:
+#                         cv2.circle(image, point, 1, (0, 255, 0), -1)
+#     return image
+
+
+
 def detect_faces(image):
     faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -69,7 +73,7 @@ def capture_face(frame, quality=False, type=""):
     if RESIZE:
         image_bgr = resize_image(image_bgr)
         
-    margin = 20
+    
     faces = detect_faces(image_bgr)
     rotation_attempts = 0
         
@@ -85,7 +89,7 @@ def capture_face(frame, quality=False, type=""):
 
   
     height, width, _ = image_bgr.shape
-    margin = 20
+    margin = 30
 
     if DRAW_RECTANGLE:
         for (x, y, w, h) in faces:
@@ -264,6 +268,164 @@ def read_image_from_url(url: str):
 
     
     
+# def compare_verify_faces_old(image1: np.ndarray, image2: np.ndarray) : 
+#     """
+#     image1 = ID card image
+#     image2 = Face image
+#     """
+#     try:
+            
+#         data_response_compare ={
+#             "CardImageCV2": None,
+#             "FaceImageCV2": None,
+#             "CardLandMarksImage": None,
+#             "FaceLandMarksImage": None,
+#             "distance": None,
+#             "match": None,
+#         }
+        
+    
+        
+#         data_response_compare["CardImageCV2"] = image1
+#         data_response_compare["FaceImageCV2"] = image2
+        
+        
+#         _, _, face_crop_found_card = capture_face(image1, True, type="- ID CARD")
+#         _, _, face_crop_found_face = capture_face(image2, type="- FACE ")
+
+#         img1_resized =  resize_image(load_image_cv(image1)) #ID CARD
+#         img1_resized = preprocess_image(img1_resized)
+#         img2_resized= resize_image(load_image_cv(image2)) # FACE UPLOAD
+#         img2_resized = preprocess_image(img2_resized)
+#         enc1=None
+#         enc2=None
+#         face_locations1= None
+#         face_locations2= None
+        
+#         if len( face_crop_found_card) >0:
+#             enc1 = face_recognition.face_encodings(load_image_cv(face_crop_found_card[0]))
+#             print("Face detected in the uploaded ID image - hardcascade")
+#         elif len(face_recognition.face_encodings(img1_resized)) ==0:
+#             original_img1_resized=img1_resized.copy()
+#             rotation_attempts = 0
+#             find_enc1=  len(face_recognition.face_encodings(img1_resized)) >0
+#             while not find_enc1 and rotation_attempts < 3:
+#               rotation_attempts += 1     
+#               print("rotating the image 90° - normal mod")
+#               img1_resized = cv2.rotate(img1_resized, cv2.ROTATE_90_COUNTERCLOCKWISE)   
+#               find_enc1=  len(face_recognition.face_encodings(img1_resized)) >0  
+                
+            
+#             if  find_enc1:
+#                 print("Face detected in the uploaded ID image - normal")
+#                 enc1=face_recognition.face_encodings(img1_resized)
+#             else:    
+#                 #  tambien debo rotar?
+#                 img1_resized=original_img1_resized.copy()
+#                 rotation_attempts = 0
+#                 face_locations1 = face_recognition.face_locations(img1_resized, model= "cnn")
+#                 while not len(face_locations1) >0 and rotation_attempts < 3:
+#                     rotation_attempts += 1     
+#                     print("rotating the image 90° - normal cnn")
+#                     img1_resized = cv2.rotate(img1_resized, cv2.ROTATE_90_COUNTERCLOCKWISE)   
+#                     face_locations1 = face_recognition.face_locations(img1_resized, model= "cnn")
+                    
+#                 if len(face_locations1) >0:
+#                     print("Face detected in the uploaded ID image - CNN")
+#                     enc1 = face_recognition.face_encodings(img1_resized, known_face_locations=[face_locations1[0]])
+#                 else:
+#                     print("No face detected in the uploaded ID image - CNN")
+#                     enc1 = face_recognition.face_encodings(img1_resized)
+                
+#         else: 
+#             print("Face detected in the uploaded ID image")
+#             # Lo encuentra a la primera
+#             enc1 = face_recognition.face_encodings(img1_resized)           
+            
+
+#         if len(face_crop_found_face) > 0:
+#             print("Face detected in the uploaded face image - hardcascade")
+#             enc2 = face_recognition.face_encodings(load_image_cv(face_crop_found_face[0]))
+#         elif len(face_recognition.face_encodings(img2_resized)) == 0 :
+#             face_locations2 = face_recognition.face_locations(img2_resized, model= "cnn")
+#             if len(face_locations2) >0:
+#                 print("Face detected in the uploaded face image - CNN")
+#                 enc2 = face_recognition.face_encodings(img2_resized, known_face_locations=[face_locations2[0]])
+                
+#             else:
+#                 print("No face detected in the uploaded face image - CNN")
+#                 enc2 = face_recognition.face_encodings(img2_resized)
+#         else:
+#             print("Face detected in the uploaded face image")
+#             enc2 = face_recognition.face_encodings(img2_resized)
+            
+        
+            
+#         # Put Landmarks on the images
+           
+#         if len(face_crop_found_card) > 0:
+#             data_response_compare["CardLandMarksImage"] = draw_landmarks(face_crop_found_card[0].copy())[:, :, ::-1]
+#         elif enc1:
+#             data_response_compare["CardLandMarksImage"] =draw_landmarks(img1_resized.copy(), face_locations1)[:, :, ::-1] 
+#         else:
+#             data_response_compare["CardLandMarksImage"] = None
+        
+        
+#         if len(face_crop_found_face) > 0:
+#             data_response_compare["FaceLandMarksImage"] = draw_landmarks(face_crop_found_face[0].copy())[:, :, ::-1]
+#         elif enc2:
+#             data_response_compare["FaceLandMarksImage"] =draw_landmarks(img2_resized.copy(), face_locations2)[:, :, ::-1] 
+#         else:
+#             data_response_compare["FaceLandMarksImage"] = None
+        
+            
+
+#         errors = []
+
+#         if not enc1:
+#             # ANALIZO CALIDAD 
+#             is_valid, quality_msg = analyze_image_quality(load_image_cv(image1))
+            
+#             errors.append(f"No face found in identity card. (1) - { quality_msg if not is_valid else "" }")
+
+#         if not enc2:
+#             # ANALIZO CALIDAD  
+#             is_valid, quality_msg = analyze_image_quality(load_image_cv(image2))
+#             errors.append(f"No face found in captured/uploaded photo. (2) { quality_msg if not is_valid else "" }")
+
+#         if errors:
+#             return create_error_response(
+#                 code=400,
+#                 message="; ".join(errors),
+#                 data=data_response_compare
+#             )
+            
+#         else:
+#              match = face_recognition.compare_faces([enc1[0]], enc2[0] ,tolerance=THRESHOLD_RECOGNITION)[0]
+#              distance = face_recognition.face_distance([enc1[0]], enc2[0] )[0]
+             
+#              data_response_compare["distance"] = distance
+#              data_response_compare["match"] = match
+             
+             
+#              return create_success_response(data=data_response_compare, message="Images compared successfully", code=200)
+          
+#     except Exception as e:
+#         print(traceback.format_exc())
+#         return create_error_response(code=500, message=f"Error processing images: {str(e)}")
+    
+    
+def draw_landmarks_face(imagen, landmarks):
+    try:
+        image_copy=imagen.copy()
+        for (x, y, z) in landmarks:
+            cv2.circle(image_copy, (int(x), int(y)), 1, (0, 255, 0), 4)
+   
+        return image_copy
+    
+    except Exception as e:
+        raise RuntimeError(f"❌ Error drawing reference points: {e}")    
+        
 def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) : 
     """
     image1 = ID card image
@@ -280,114 +442,122 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
             "match": None,
         }
         
+        try:
+            app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
+            app.prepare(ctx_id=0, det_size=(640, 640))
+        except Exception as e:
+           raise RuntimeError(f"Error al inicializar el modelo FaceAnalysis: {e}")
     
         
         data_response_compare["CardImageCV2"] = image1
         data_response_compare["FaceImageCV2"] = image2
         
         
+        # capturar las caras de las imagenes
         _, _, face_crop_found_card = capture_face(image1, True, type="- ID CARD")
         _, _, face_crop_found_face = capture_face(image2, type="- FACE ")
 
+
+
         img1_resized =  resize_image(load_image_cv(image1)) #ID CARD
         img1_resized = preprocess_image(img1_resized)
+        
         img2_resized= resize_image(load_image_cv(image2)) # FACE UPLOAD
         img2_resized = preprocess_image(img2_resized)
+        # Inicializar variables
         enc1=None
         enc2=None
-        face_locations1= None
-        face_locations2= None
+        hardcascadeModel2= False
+        hardcascadeModel1= False
+        faces_enc1=None
+        faces_enc2=None
+        errors = []
         
-        if len( face_crop_found_card) >0:
-            enc1 = face_recognition.face_encodings(load_image_cv(face_crop_found_card[0]))
-            print("Face detected in the uploaded ID image - hardcascade")
-        elif len(face_recognition.face_encodings(img1_resized)) ==0:
-            original_img1_resized=img1_resized.copy()
-            rotation_attempts = 0
-            find_enc1=  len(face_recognition.face_encodings(img1_resized)) >0
-            while not find_enc1 and rotation_attempts < 3:
-              rotation_attempts += 1     
-              print("rotating the image 90° - normal mod")
-              img1_resized = cv2.rotate(img1_resized, cv2.ROTATE_90_COUNTERCLOCKWISE)   
-              find_enc1=  len(face_recognition.face_encodings(img1_resized)) >0  
-                
+        if len(face_crop_found_card) >0:
+            faces_enc1 = app.get(face_crop_found_card[0][:, :, ::-1])    
             
-            if  find_enc1:
-                print("Face detected in the uploaded ID image - normal")
-                enc1=face_recognition.face_encodings(img1_resized)
-            else:    
-                #  tambien debo rotar?
-                img1_resized=original_img1_resized.copy()
-                rotation_attempts = 0
-                face_locations1 = face_recognition.face_locations(img1_resized, model= "cnn")
-                while not len(face_locations1) >0 and rotation_attempts < 3:
-                    rotation_attempts += 1     
-                    print("rotating the image 90° - normal cnn")
-                    img1_resized = cv2.rotate(img1_resized, cv2.ROTATE_90_COUNTERCLOCKWISE)   
-                    face_locations1 = face_recognition.face_locations(img1_resized, model= "cnn")
-                    
-                if len(face_locations1) >0:
-                    print("Face detected in the uploaded ID image - CNN")
-                    enc1 = face_recognition.face_encodings(img1_resized, known_face_locations=[face_locations1[0]])
+            # cv2.imwrite('prueba.jpg', face_crop_found_card[0][:, :, ::-1])
+            if faces_enc1: 
+                
+                print("Face detected in the uploaded ID image - hardcascade")
+                enc1 = faces_enc1[0].embedding
+              
+                if enc1 is None or len(enc1) == 0:
+                    print("No detected landmarks in the uploaded ID image - hardcascade")
                 else:
-                    print("No face detected in the uploaded ID image - CNN")
-                    enc1 = face_recognition.face_encodings(img1_resized)
-                
-        else: 
-            print("Face detected in the uploaded ID image")
-            # Lo encuentra a la primera
-            enc1 = face_recognition.face_encodings(img1_resized)           
-            
-
-        if len(face_crop_found_face) > 0:
-            print("Face detected in the uploaded face image - hardcascade")
-            enc2 = face_recognition.face_encodings(load_image_cv(face_crop_found_face[0]))
-        elif len(face_recognition.face_encodings(img2_resized)) == 0 :
-            face_locations2 = face_recognition.face_locations(img2_resized, model= "cnn")
-            if len(face_locations2) >0:
-                print("Face detected in the uploaded face image - CNN")
-                enc2 = face_recognition.face_encodings(img2_resized, known_face_locations=[face_locations2[0]])
-                
-            else:
-                print("No face detected in the uploaded face image - CNN")
-                enc2 = face_recognition.face_encodings(img2_resized)
-        else:
-            print("Face detected in the uploaded face image")
-            enc2 = face_recognition.face_encodings(img2_resized)
-            
+                    hardcascadeModel1 = True
+                    print("Detected landmarks in the uploaded ID image - hardcascadee")
+       
         
+        if not faces_enc1 or enc1 is None or len(enc1) == 0:
+             # rotar la imagen si no se encuentra cara tres veces
+           
+            if faces_enc1:
+                print("Face detected in the uploaded ID image - normal")
+                enc1 = faces_enc1[0].embedding
+                if enc1 is None or len(enc1) == 0:
+                  
+                    print("No detected landmarks in the uploaded ID image - normal")
+                else:
+                    print("Detected landmarks in the uploaded ID image - normal")
+
+            else: 
+                
+                print("No face detected in the uploaded ID image - normal")         
+      
+        if len(face_crop_found_face) >0:
+            faces_enc2 = app.get(face_crop_found_face[0])     
+            
+            if faces_enc2: 
+                print("Face detected in the uploaded face image -  hardcascade")
+                enc2 = faces_enc2[0].embedding
+                if enc2 is None or len(enc2) == 0:
+                    print("No detected landmarks in the uploaded face image -  hardcascade")
+                else:
+                    hardcascadeModel2 = True
+                    print("Detected landmarks in the uploaded face image - hardcascadee")
+
+        if not faces_enc2 or enc2 is None or len(enc2) == 0:
+             # rotar la imagen si no se encuentra cara tres veces
+            faces_enc2= app.get(img2_resized) 
+            
+            if faces_enc2:
+                print("Face detected in the uploaded face image -  normal")
+                enc2 = faces_enc2[0].embedding
+                if enc2 is None or len(enc2) == 0:
+                    
+                    print("No detected landmarks in the uploaded face image -  normal")
+                else:
+                    print("Detected landmarks in the uploaded  face image - normal")
+            else: 
+               
+                print("No face detected in the uploaded face image -  normal")        
+    
+
             
         # Put Landmarks on the images
-           
-        if len(face_crop_found_card) > 0:
-            data_response_compare["CardLandMarksImage"] = draw_landmarks(face_crop_found_card[0].copy())[:, :, ::-1]
-        elif enc1:
-            data_response_compare["CardLandMarksImage"] =draw_landmarks(img1_resized.copy(), face_locations1)[:, :, ::-1] 
+        if  faces_enc1 and enc1 is not None and len(enc1) > 0:   
+            data_response_compare["CardLandMarksImage"] =  draw_landmarks_face(img1_resized if not hardcascadeModel1  else face_crop_found_card[0], faces_enc1[0].landmark_3d_68)[:, :, ::-1]
         else:
             data_response_compare["CardLandMarksImage"] = None
-        
-        
-        if len(face_crop_found_face) > 0:
-            data_response_compare["FaceLandMarksImage"] = draw_landmarks(face_crop_found_face[0].copy())[:, :, ::-1]
-        elif enc2:
-            data_response_compare["FaceLandMarksImage"] =draw_landmarks(img2_resized.copy(), face_locations2)[:, :, ::-1] 
+      
+        if  faces_enc2 and enc2 is not None and len(enc2) > 0:   
+            data_response_compare["FaceLandMarksImage"] =  draw_landmarks_face(img2_resized if not hardcascadeModel2  else face_crop_found_face[0], faces_enc2[0].landmark_3d_68)[:, :, ::-1]
         else:
-            data_response_compare["FaceLandMarksImage"] = None
+            data_response_compare["FaceLandMarksImage"] = None            
+   
         
-            
-
-        errors = []
-
-        if not enc1:
+        if enc1 is None or len(enc1) == 0:
             # ANALIZO CALIDAD 
             is_valid, quality_msg = analyze_image_quality(load_image_cv(image1))
             
-            errors.append(f"No face found in identity card. (1) - { quality_msg if not is_valid else "" }")
+            errors.append(f"No face found in identity card. (1) - { quality_msg if not is_valid else '' }")
 
-        if not enc2:
+
+        if enc2 is None or len(enc2) == 0:
             # ANALIZO CALIDAD  
             is_valid, quality_msg = analyze_image_quality(load_image_cv(image2))
-            errors.append(f"No face found in captured/uploaded photo. (2) { quality_msg if not is_valid else "" }")
+            errors.append(f"No face found in captured/uploaded photo. (2) { quality_msg if not is_valid else '' }")
 
         if errors:
             return create_error_response(
@@ -397,18 +567,16 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
             )
             
         else:
-             match = face_recognition.compare_faces([enc1[0]], enc2[0] ,tolerance=THRESHOLD_RECOGNITION)[0]
-             distance = face_recognition.face_distance([enc1[0]], enc2[0] )[0]
-             
-             data_response_compare["distance"] = distance
-             data_response_compare["match"] = match
-             
-             
+             similarity =  float(np.dot(enc1, enc2) / (np.linalg.norm(enc1) * np.linalg.norm(enc2)))
+
+             data_response_compare["distance"] = round(similarity, 4) # similarity
+             data_response_compare["match"] = (similarity > 0.35)        # umbral
+              
              return create_success_response(data=data_response_compare, message="Images compared successfully", code=200)
           
     except Exception as e:
         print(traceback.format_exc())
-        return create_error_response(code=500, message=f"Error processing images: {str(e)}")
+        return create_error_response(code=500, message=f"Error processing images: {str(e)}", data=data_response_compare)
     
     
     

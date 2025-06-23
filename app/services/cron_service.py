@@ -49,7 +49,7 @@ async def  run_cron_verify_id():
             if response_card_image_cv2.get("success") is False:
                 print("Error loading card image:", response_card_image_cv2.get("message") )
                 doc_ref.update({"message":"Error loading card image - "+ response_card_image_cv2.get("message") , "updated_at": datetime.now(timezone.utc) , "success": False,"status": "failed"})
-
+                #poner failed a todo
                 continue
                 
             # Read the face image from the URL                
@@ -59,6 +59,7 @@ async def  run_cron_verify_id():
             if response_face_image_cv2.get("success") is False:
                 print("Error loading face image:", response_face_image_cv2.get("message"))
                 doc_ref.update({"message":"Error loading face image - "+ response_face_image_cv2.get("message") , "updated_at": datetime.now(timezone.utc), "success": False,"status": "failed"})
+                  #poner failed a todo
                 continue
             
             image_card=response_card_image_cv2.get("data")
@@ -83,24 +84,49 @@ async def  run_cron_verify_id():
             
             if response_matched.get("success") is True:
                 doc_ref.update({"data.output.distance": data_compare.get("distance")  ,  "data.output.result_match": bool(data_compare.get("match")) ,  "updated_at": datetime.now(timezone.utc), "message": "Identity successfully compared","status": "partially_completed"})
-                
-           # Call the callback function 
-            async with httpx.AsyncClient() as client:
-                try:
-                    # Make the POST request to the callback URL with the result 
-                    response = await client.post(callback, json={
-                        "request_id": pending_request.id,
-                        "success": response_matched.get("success"),
-                        "message": response_matched.get("message"),
-                        "result_match": bool(data_compare.get("match")) if data_compare.get("match") is not None else None,
-                        "distance": data_compare.get("distance"),
-                        
-                    })
-                    response.raise_for_status()
-                except Exception as e:
-                    found_errors=True 
-                    print(f"Error calling callback url - {callback} : {e}")
-                    text_errors.append(f"Error calling callback url - {callback} : {e}")
+            
+            
+            if data_compare is None:
+                print("Error comparing images: No data returned from the comparison.")
+                async with httpx.AsyncClient() as client:
+                    try:
+                        # Make the POST request to the callback URL with the result 
+                        response = await client.post(callback, json={
+                            "request_id": pending_request.id,
+                            "success": False,
+                            "message": response_matched.get("message"),
+                            "result_match": None,
+                            "distance": None,
+                            
+                        })
+                        response.raise_for_status()
+                    except Exception as e:
+                        found_errors=True 
+                        print(f"Error calling callback url - {callback} : {e}")
+                        text_errors.append(f"Error calling callback url - {callback} : {e}")
+                   
+                    
+            
+            else:    
+            # Call the callback function 
+                async with httpx.AsyncClient() as client:
+                    try:
+                        # Make the POST request to the callback URL with the result 
+                        response = await client.post(callback, json={
+                            "request_id": pending_request.id,
+                            "success": response_matched.get("success"),
+                            "message": response_matched.get("message"),
+                            "result_match": bool(data_compare.get("match")) if data_compare.get("match") is not None else None,
+                            "distance": data_compare.get("distance"),
+                            
+                        })
+                        response.raise_for_status()
+                    except Exception as e:
+                        found_errors=True 
+                        print(f"Error calling callback url - {callback} : {e}")
+                        text_errors.append(f"Error calling callback url - {callback} : {e}")
+           
+            
                    
            
             # Upload the images to the firebase database
