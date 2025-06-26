@@ -89,14 +89,15 @@ def capture_face(frame, quality=False, type=""):
 
   
     height, width, _ = image_bgr.shape
-    margin = 30
+    margin = 100
 
     if DRAW_RECTANGLE:
         for (x, y, w, h) in faces:
             cv2.rectangle(image_bgr, (x, y), (x + w, y + h), (0, 0, 255), 4)
    
-   
+    
     if faces:
+        print("Face detected in the uploaded image captureFace "+type+".")
         for (x, y, w, h) in faces:
             x1 = max(x - margin, 0)
             y1 = max(y - margin, 0)
@@ -106,7 +107,7 @@ def capture_face(frame, quality=False, type=""):
             face_crop = image_bgr[y1:y2, x1:x2][:, :, ::-1]
             face_crop_found.append(face_crop)
     else:
-        print("No face detected in the uploaded  image "+type+".")
+        print("No face detected in the uploaded  image captureFace"+type+".")
 
 
     return image_np, image_bgr, face_crop_found
@@ -476,7 +477,7 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         if len(face_crop_found_card) >0:
             faces_enc1 = app.get(face_crop_found_card[0][:, :, ::-1])    
             
-            # cv2.imwrite('prueba.jpg', face_crop_found_card[0][:, :, ::-1])
+            #cv2.imwrite('prueba.jpg', face_crop_found_card[0][:, :, ::-1])
             if faces_enc1: 
                 
                 print("Face detected in the uploaded ID image - hardcascade")
