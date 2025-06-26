@@ -100,8 +100,12 @@ gcloud run deploy "$SERVICE_NAME" \
   --service-account="$CLOUD_RUN_SA_EMAIL" \
   --memory=2Gi
 
+# ──────── ENABLE CLOUD SCHEDULER ────────
+echo "🔒 Habilitando API de Cloud Scheduler..."
 gcloud services enable cloudscheduler.googleapis.com --project=$PROJECT_ID
 
+# ──────── CREAR JOB DE CLOUD SCHEDULER ────────
+echo "🔒 Creando job de Cloud Scheduler..."
 DEPLOYED_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format='value(status.url)')
 
 gcloud scheduler jobs create http cronVerifyId \

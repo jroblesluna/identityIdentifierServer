@@ -35,6 +35,17 @@ else
   echo "✅ Secreto '$SECRET_NAME' ya estaba eliminado."
 fi
 
+# Eliminar job de Cloud Scheduler si existe
+echo "🗓️  Verificando existencia del job 'cronVerifyId'..."
+if gcloud scheduler jobs describe cronVerifyId --location=$REGION &> /dev/null; then
+  echo "🗑️  Eliminando job de Cloud Scheduler 'cronVerifyId'..."
+  gcloud scheduler jobs delete cronVerifyId --location=$REGION --quiet
+else
+  echo "✅ Job 'cronVerifyId' ya estaba eliminado."
+fi
+
+# (Opcional: desactivar la API solo si no planeas volver a usar Scheduler pronto)
+echo "🛑 Desactivando API de Cloud Scheduler..."
 gcloud services disable cloudscheduler.googleapis.com --project=$PROJECT_ID
 
-cho -e "\n🎉 Limpieza completa sin errores."
+echo -e "\n🎉 Limpieza completa sin errores."
