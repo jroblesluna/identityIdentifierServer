@@ -11,14 +11,14 @@ from app.services.database_service import upload_image_cv2
 from app.utils.others import convert_numpy_types
 from app.utils.response import create_error_response, create_success_response
 from insightface.app import FaceAnalysis
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 PREPROCESS = False
 RESIZE = True
 DRAW_RECTANGLE = False
 THRESHOLD_RECOGNITION=0.6
-
-
 
 
 # def draw_landmarks(image , face_locations=None):
@@ -53,7 +53,8 @@ THRESHOLD_RECOGNITION=0.6
 def detect_faces(image):
     faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    faces = faceCascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=15)
+    faces = faceCascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=11,  minSize=(100, 100))
+    # min size para eliminación de detección de caras pequeñas (test)
     min_area = 2000
     return [face for face in faces if face[2] * face[3] >= min_area]
 
@@ -69,10 +70,17 @@ def capture_face(frame, quality=False, type=""):
 
     # Convertir a BGR y redimensionar si es necesario
     image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+    
     image_bgr_original=image_bgr.copy()
+    
+    # if quality:
+    #     cv2.imwrite('prueba_normal.jpg', image_bgr)  
+      
     if RESIZE:
         image_bgr = resize_image(image_bgr)
-        
+      
+        # if quality:  
+        #     cv2.imwrite('prueba_Risize.jpg', image_bgr)    
     
     faces = detect_faces(image_bgr)
     rotation_attempts = 0
@@ -120,6 +128,7 @@ def resize_image(image, max_size=600):
         new_w, new_h = int(w * scale), int(h * scale)
         return cv2.resize(image, (new_w, new_h))
     return image
+
 
 def load_image_cv(image_file):
     if isinstance(image_file, Image.Image):
@@ -460,11 +469,17 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
 
 
 
+
         img1_resized =  resize_image(load_image_cv(image1)) #ID CARD
+        
+        
         img1_resized = preprocess_image(img1_resized)
         
         img2_resized= resize_image(load_image_cv(image2)) # FACE UPLOAD
+        
+        
         img2_resized = preprocess_image(img2_resized)
+        
         # Inicializar variables
         enc1=None
         enc2=None

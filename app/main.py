@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from app.api.endpoints import recognition
+from app.api.endpoints import emotions, recognition
 from app.services.cron_service import run_cron_verify_id
 from app.database.config import conect_to_firestoreDataBase
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +37,9 @@ def read_root():
 
 # Recognition routes
 app.include_router(recognition.router, prefix="/recognition", tags=["recognition"])
+
+app.include_router(emotions.router, prefix="/emotions", tags=["emotions"])
+
 
 
 # URL not found exception
