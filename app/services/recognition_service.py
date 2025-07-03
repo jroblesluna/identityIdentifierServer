@@ -60,7 +60,7 @@ def detect_faces(image):
 
 
 def capture_face(frame, quality=False, type=""):
-    global PREPROCESS, RESIZE, DRAW_RECTANGL # declarar uso de variables globales
+    global PREPROCESS, RESIZE, DRAW_RECTANGLE # declarar uso de variables globales
     # agregar  rotación y calidad
     face_crop_found = []
     image_np = load_image_cv(frame)
@@ -507,7 +507,8 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray) :
         
         if not faces_enc1 or enc1 is None or len(enc1) == 0:
              # rotar la imagen si no se encuentra cara tres veces
-           
+            faces_enc1= app.get(img1_resized)
+             
             if faces_enc1:
                 print("Face detected in the uploaded ID image - normal")
                 enc1 = faces_enc1[0].embedding
