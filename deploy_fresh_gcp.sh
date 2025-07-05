@@ -13,6 +13,8 @@ FIREBASE_KEY_PATH="./firebase_key.json"
 STORAGE_BUCKET_NAME="identityverifierapp.firebasestorage.app"
 CLOUD_RUN_SA="cloud-run-sa"
 CLOUD_RUN_SA_EMAIL="$CLOUD_RUN_SA@$PROJECT_ID.iam.gserviceaccount.com"
+DOMAIN="identity-api.robles.ai"
+
 
 gcloud config set project $PROJECT_ID
 
@@ -116,5 +118,15 @@ gcloud scheduler jobs create http cronVerifyId \
   --message-body="{}" \
   --oidc-service-account-email=$CLOUD_RUN_SA_EMAIL \
   --location=$REGION
+
+echo "🌐 Configurando domain mapping $DOMAIN → $SERVICE_NAME..."
+
+gcloud run domain-mappings create \
+  --domain="$DOMAIN" \
+  --service="$SERVICE_NAME" \
+  --region="$REGION" \
+  --platform=managed \
+  --quiet
+
 
 echo -e "\n🎉 ✅ ¡Despliegue exitoso de '$SERVICE_NAME' en Cloud Run!"

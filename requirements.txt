@@ -13,3 +13,4 @@ tzlocal==5.3.1
 insightface==0.7.3
 onnxruntime
 py-feat
+scipy==1.11.4
