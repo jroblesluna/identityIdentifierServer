@@ -10,19 +10,17 @@ CLOUD_RUN_SA="cloud-run-sa"
 CLOUD_RUN_SA_EMAIL="$CLOUD_RUN_SA@$PROJECT_ID.iam.gserviceaccount.com"
 DOMAIN="identity-api.robles.ai"
 
-
 gcloud config set project $PROJECT_ID
 
 echo "🧹 Iniciando limpieza en el proyecto: $PROJECT_ID"
 
 # Eliminar dominio si existe
-if gcloud domains describe "$DOMAIN" &> /dev/null; then
+if gcloud domains registrations describe "$DOMAIN" &> /dev/null; then
   echo "🗑️  Eliminando dominio '$DOMAIN'..."
-  gcloud domains delete "$DOMAIN" --quiet
+  gcloud beta run domain-mappings delete --domain="$DOMAIN" --region="$REGION" --platform=managed
 else
   echo "✅ Dominio '$DOMAIN' ya estaba eliminado."
 fi
-
 
 # Eliminar servicio Cloud Run si existe
 if gcloud run services describe "$SERVICE_NAME" --platform=managed --region="$REGION" &> /dev/null; then

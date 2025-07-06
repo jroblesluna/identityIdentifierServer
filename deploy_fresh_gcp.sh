@@ -16,8 +16,6 @@ CLOUD_RUN_SA_EMAIL="$CLOUD_RUN_SA@$PROJECT_ID.iam.gserviceaccount.com"
 DOMAIN="identity-api.robles.ai"
 
 
-gcloud config set project $PROJECT_ID
-
 echo "📁 Proyecto: $PROJECT_ID"
 echo "🧭 Región: $REGION"
 echo "🔐 Secreto: $SECRET_NAME"
@@ -43,14 +41,16 @@ if gcloud artifacts repositories list --location="$REGION" --format="value(name)
 else
   echo "📦 [CREANDO] Repositorio '$REPO_NAME'..."
   gcloud artifacts repositories create "$REPO_NAME" \
-    --repository-format=docker \
-    --location="$REGION" \
-    --description="Docker repo for $SERVICE_NAME"
+     --repository-format=docker \
+     --location="$REGION" \
+     --description="Docker repo for $SERVICE_NAME"
 fi
 
 # ──────── CONSTRUIR IMAGEN DOCKER ────────
 echo "🔧 Construyendo imagen Docker y subiendo a Artifact Registry..."
 gcloud builds submit --tag "$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$TAG"
+#gcloud builds list --limit=5
+#gcloud builds log [BUILD_ID] --stream
 
 # ──────── CUENTA DE SERVICIO ────────
 echo "👤 Verificando cuenta de servicio '$CLOUD_RUN_SA_EMAIL'..."
@@ -121,12 +121,11 @@ gcloud scheduler jobs create http cronVerifyId \
 
 echo "🌐 Configurando domain mapping $DOMAIN → $SERVICE_NAME..."
 
-gcloud run domain-mappings create \
+gcloud beta run domain-mappings create \
   --domain="$DOMAIN" \
   --service="$SERVICE_NAME" \
   --region="$REGION" \
   --platform=managed \
   --quiet
-
 
 echo -e "\n🎉 ✅ ¡Despliegue exitoso de '$SERVICE_NAME' en Cloud Run!"
