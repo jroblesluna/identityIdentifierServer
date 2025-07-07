@@ -100,11 +100,13 @@ gcloud run deploy "$SERVICE_NAME" \
   --set-secrets="/secrets/$SECRET_NAME=${SECRET_NAME}:latest" \
   --allow-unauthenticated \
   --service-account="$CLOUD_RUN_SA_EMAIL" \
-  --memory=2Gi
+  --memory=4Gi
 
 # ──────── ENABLE CLOUD SCHEDULER ────────
 echo "🔒 Habilitando API de Cloud Scheduler..."
 gcloud services enable cloudscheduler.googleapis.com --project=$PROJECT_ID
+echo "⏳ Esperando unos segundos para propagación de API..."
+sleep 5
 
 # ──────── CREAR JOB DE CLOUD SCHEDULER ────────
 echo "🔒 Creando job de Cloud Scheduler..."
@@ -125,7 +127,6 @@ gcloud beta run domain-mappings create \
   --domain="$DOMAIN" \
   --service="$SERVICE_NAME" \
   --region="$REGION" \
-  --platform=managed \
-  --quiet
+  --platform=managed
 
 echo -e "\n🎉 ✅ ¡Despliegue exitoso de '$SERVICE_NAME' en Cloud Run!"

@@ -21,10 +21,15 @@ ENV PYTHONPATH=/app
 
 COPY . /app
 
+# Copia el dlib precompilado para evitar recompilarlo
+COPY dlib-precompiled/_dlib_pybind11.cpython-310-x86_64-linux-gnu.so /usr/local/lib/python3.10/site-packages/
+COPY dlib-precompiled/dlib /usr/local/lib/python3.10/site-packages/dlib
+COPY dlib-precompiled/dlib-19.22.0.dist-info /usr/local/lib/python3.10/site-packages/dlib-19.22.0.dist-info
+
 # Instalar CMake vía pip y dlib antes que el resto
 RUN pip install --upgrade pip setuptools wheel \
  && pip install cmake==3.27.0 \
- && pip install dlib==19.22.0 \
+ #&& pip install dlib==19.22.0 \
  && pip install --no-cache-dir -r requirements.txt
 
 # Descargar modelo si lo necesitas

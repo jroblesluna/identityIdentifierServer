@@ -15,7 +15,7 @@ gcloud config set project $PROJECT_ID
 echo "🧹 Iniciando limpieza en el proyecto: $PROJECT_ID"
 
 # Eliminar dominio si existe
-if gcloud domains registrations describe "$DOMAIN" &> /dev/null; then
+if gcloud beta run domain-mappings describe --domain "$DOMAIN" &> /dev/null; then
   echo "🗑️  Eliminando dominio '$DOMAIN'..."
   gcloud beta run domain-mappings delete --domain="$DOMAIN" --region="$REGION" --platform=managed
 else
