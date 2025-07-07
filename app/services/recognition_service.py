@@ -472,20 +472,21 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray):
 
         # capturar las caras de las imagenes
         _, _, face_crop_found_card = capture_face(image1, True, type="- ID CARD")
-        _, _, face_crop_found_face = capture_face(image2, type="- FACE ")
-
+        
+        
         img1_resized = resize_image(load_image_cv(image1))  # ID CARD
 
+        # Pre-process
         img1_resized = preprocess_image(img1_resized)
 
         img2_resized = resize_image(load_image_cv(image2))  # FACE UPLOAD
-
+        
+        # Pre-process
         img2_resized = preprocess_image(img2_resized)
 
         # Inicializar variables
         enc1 = None
         enc2 = None
-        hardcascadeModel2 = False
         hardcascadeModel1 = False
         faces_enc1 = None
         faces_enc2 = None
@@ -525,22 +526,6 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray):
 
                 print("No face detected in the uploaded ID image - normal")
 
-        if len(face_crop_found_face) > 0:
-            faces_enc2 = app.get(face_crop_found_face[0])
-
-            if faces_enc2:
-                print("Face detected in the uploaded face image -  hardcascade")
-                enc2 = faces_enc2[0].embedding
-                if enc2 is None or len(enc2) == 0:
-                    print(
-                        "No detected landmarks in the uploaded face image -  hardcascade"
-                    )
-                else:
-                    hardcascadeModel2 = True
-                    print(
-                        "Detected landmarks in the uploaded face image - hardcascadee"
-                    )
-
         if not faces_enc2 or enc2 is None or len(enc2) == 0:
             # rotar la imagen si no se encuentra cara tres veces
             faces_enc2 = app.get(img2_resized)
@@ -568,14 +553,14 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray):
 
         if faces_enc2 and enc2 is not None and len(enc2) > 0:
             data_response_compare["FaceLandMarksImage"] = draw_landmarks_face(
-                img2_resized if not hardcascadeModel2 else face_crop_found_face[0],
+                img2_resized,
                 faces_enc2[0].landmark_3d_68,
             )[:, :, ::-1]
         else:
             data_response_compare["FaceLandMarksImage"] = None
 
         if enc1 is None or len(enc1) == 0:
-            # ANALIZO CALIDAD
+            # QUALITY ANALYSIS
             is_valid, quality_msg = analyze_image_quality(load_image_cv(image1))
 
             errors.append(
@@ -583,7 +568,7 @@ def compare_verify_faces(image1: np.ndarray, image2: np.ndarray):
             )
 
         if enc2 is None or len(enc2) == 0:
-            # ANALIZO CALIDAD
+            # QUALITY ANALYSIS
             is_valid, quality_msg = analyze_image_quality(load_image_cv(image2))
             errors.append(
                 f"No face found in captured/uploaded photo. (2) { quality_msg if not is_valid else '' }"
